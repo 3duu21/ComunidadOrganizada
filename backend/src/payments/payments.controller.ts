@@ -20,9 +20,9 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 @Controller('payments')
 @UseGuards(JwtAuthGuard)
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(private readonly paymentsService: PaymentsService) { }
 
-  // Crear pago
+  // Crear pago (ingreso)
   @Post()
   @ApiBody({ type: CreatePaymentDto })
   create(@Body() body: CreatePaymentDto, @Req() req: any) {
@@ -30,12 +30,17 @@ export class PaymentsController {
     return this.paymentsService.create(body, userId);
   }
 
-  @Get()
+  // ...
   @ApiQuery({ name: 'building_id', required: false })
   @ApiQuery({ name: 'condominium_id', required: false })
+  @ApiQuery({ name: 'type_income', required: false })
+  @ApiQuery({ name: 'department_id', required: false }) // 👈 NUEVO
+  @Get()
   find(
     @Query('building_id') buildingIdRaw: string,
     @Query('condominium_id') condoIdRaw: string,
+    @Query('type_income') typeIncomeRaw: string,
+    @Query('department_id') departmentIdRaw: string, // 👈 NUEVO
     @Req() req: any,
   ) {
     const userId = req.user.userId;
@@ -50,7 +55,30 @@ export class PaymentsController {
         ? condoIdRaw
         : undefined;
 
-    return this.paymentsService.findByFilter(buildingId, condoId, userId);
+    const typeIncome =
+      typeIncomeRaw && typeIncomeRaw !== 'undefined' && typeIncomeRaw !== ''
+        ? typeIncomeRaw
+        : undefined;
+
+    const departmentId =
+      departmentIdRaw && departmentIdRaw !== 'undefined' && departmentIdRaw !== ''
+        ? departmentIdRaw
+        : undefined;
+
+    return this.paymentsService.findByFilter(
+      buildingId,
+      condoId,
+      typeIncome,
+      departmentId, // 👈 NUEVO
+      userId,
+    );
+  }
+
+
+  // Tipos de ingreso (lista para el select)
+  @Get('/types/list')
+  getTypes() {
+    return this.paymentsService.getTypes();
   }
 
   // Obtener pago por ID

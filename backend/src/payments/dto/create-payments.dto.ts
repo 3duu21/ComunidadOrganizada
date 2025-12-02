@@ -1,3 +1,4 @@
+// create-payments.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsUUID,
@@ -14,7 +15,7 @@ export class CreatePaymentDto {
 
   @ApiProperty()
   @IsUUID()
-  apartment_id: string; // 👈 si en tu BD es department_id, después lo podemos alinear
+  department_id: string;
 
   @ApiProperty()
   @IsNumber()
@@ -29,7 +30,6 @@ export class CreatePaymentDto {
   @IsDateString()
   date: string;
 
-  // 🔹 NUEVO: método de pago
   @ApiProperty({
     required: false,
     example: 'Transferencia',
@@ -38,7 +38,6 @@ export class CreatePaymentDto {
   @IsString()
   payment_method?: string;
 
-  // 🔹 NUEVO: número de documento
   @ApiProperty({
     required: false,
     example: 'TRX-12345',
@@ -46,4 +45,14 @@ export class CreatePaymentDto {
   @IsOptional()
   @IsString()
   document_number?: string;
+
+  // 👇 IMPORTANTE
+  @ApiProperty({
+    required: false,
+    example: 'Gasto común',
+    description: 'Tipo de ingreso (GC, multa, etc.)',
+  })
+  @IsOptional()
+  @IsString()
+  type_income?: string;
 }

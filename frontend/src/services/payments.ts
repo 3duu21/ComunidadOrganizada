@@ -9,15 +9,22 @@ export interface PaymentCreate {
   date: string;
   payment_method?: string;
   document_number?: string;
+  // 👇 NUEVO: tiene que existir aquí
+  type_income?: string;
 }
 
 export interface PaymentUpdate extends Partial<PaymentCreate> {}
 
-// Listar pagos, opcionalmente por edificio y condominio
-export const getPayments = async (buildingId?: string, condoId?: string) => {
+// Listar pagos, opcionalmente por edificio y condominio y tipo
+export const getPayments = async (
+  buildingId?: string,
+  condoId?: string,
+  typeIncome?: string
+) => {
   const params: any = {};
   if (buildingId) params.building_id = buildingId;
   if (condoId) params.condominium_id = condoId;
+  if (typeIncome) params.type_income = typeIncome;
 
   const res = await api.get("/payments", { params });
   return res.data;
@@ -38,5 +45,11 @@ export const updatePayment = async (id: string, data: PaymentUpdate) => {
 // Eliminar pago
 export const deletePayment = async (id: string) => {
   const res = await api.delete(`/payments/${id}`);
+  return res.data;
+};
+
+// 👇 NUEVO: tipos de ingreso (para el select)
+export const getPaymentTypes = async () => {
+  const res = await api.get("/payments/types/list");
   return res.data;
 };

@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import CreateExpenseModal from "../components/modals/CreateExpenseModal";
 import { EditExpenseModal } from "../components/modals/EditExpenseModal";
 import { DeleteExpenseModal } from "../components/modals/DeleteExpenseModal";
-import { getExpenses } from "../services/expenses"; // si no lo usas puedes borrarlo
 import api from "../services/api";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -43,43 +42,112 @@ export default function Gastos() {
   const formatCurrency = (value: number) =>
     `$${value.toLocaleString("es-CL")}`;
 
+  // ===== PDF con mismo estilo que Ingresos =====
   const generatePDF = () => {
-    const doc = new jsPDF();
+    if (!expenses.length) return;
 
-    // Título
-    doc.setFontSize(18);
-    doc.text("Reporte de Gastos", 14, 20);
+    const doc = new jsPDF("p", "mm", "a4");
 
-    // Subtítulo con filtros activos
+    const formatCurrencyPDF = (value: number) =>
+      `$${(value || 0).toLocaleString("es-CL")}`;
+
+    const todayLabel = new Date().toLocaleDateString("es-CL");
+
+    // Título principal
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text(
-      `Filtros aplicados:
-Condominio: ${filters.condominiumName || "—"}
-Edificio: ${filters.buildingName || "—"}
-Tipo: ${filters.type_expense || "Todos"}`,
-      14,
-      30
-    );
+    doc.text("RESUMEN DE GASTOS", 105, 18, { align: "center" });
 
-    // Construimos la tabla
-    const tableData = expenses.map((e) => [
-      e.date,
-      e.description,
-      e.type_expense,
-      formatCurrency(e.amount),
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+
+    // Caja información condominio / edificio
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.2);
+    doc.rect(12, 24, 120, 18);
+
+    doc.text("Condominio Organizado", 14, 29);
+    doc.text(`Condominio: ${filters.condominiumName}`, 14, 34);
+    if (filters.buildingName !== "—") {
+      doc.text(`Edificio: ${filters.buildingName}`, 14, 39);
+    }
+
+    // Info a la derecha (fecha y tipo de gasto)
+    doc.text(`Fecha emisión: ${todayLabel}`, 198, 29, { align: "right" });
+    if (selectedType) {
+      doc.text(`Tipo gasto: ${filters.type_expense}`, 198, 34, {
+        align: "right",
+      });
+    }
+
+    // Línea separadora
+    doc.line(12, 46, 198, 46);
+
+    // Tabla de gastos
+    const body = expenses.map((e) => [
+      e.document_number || "",
+      e.date || "",
+      e.type_expense || "",
+      e.description || "Sin descripción",
+      e.payment_method || "—",
+      formatCurrencyPDF(e.amount || 0),
     ]);
 
     autoTable(doc, {
-      startY: 45,
-      head: [["Fecha", "Descripción", "Tipo de gasto", "Monto"]],
-      body: tableData,
+      startY: 50,
+      head: [
+        ["N° Doc", "Fecha", "Tipo gasto", "Descripción", "Tipo pago", "Monto"],
+      ],
+      body,
+      styles: {
+        fontSize: 8,
+      },
+      headStyles: {
+        fillColor: [250, 250, 250],
+        textColor: 40,
+        lineWidth: 0.1,
+      },
+      bodyStyles: {
+        lineWidth: 0.08,
+      },
+      columnStyles: {
+        2: { cellWidth: 30 },
+        3: { cellWidth: 50 },
+        4: { cellWidth: 25 },
+        5: { halign: "right" },
+      },
+      margin: { left: 12, right: 12 },
+      theme: "grid",
     });
 
-    // Guardar
-    doc.save("reporte_gastos.pdf");
+    const finalY = (doc as any).lastAutoTable?.finalY || 60;
+
+    const totalAmount = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+    // Total al pie
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setFillColor(240, 240, 240);
+    doc.rect(12, finalY + 4, 186, 8, "F");
+    doc.text("TOTAL GASTOS", 14, finalY + 9);
+    doc.text(formatCurrencyPDF(totalAmount), 198, finalY + 9, {
+      align: "right",
+    });
+
+    const safeCondo =
+      filters.condominiumName === "—"
+        ? "sin_condominio"
+        : filters.condominiumName.replace(/\s+/g, "_");
+    const safeBuilding =
+      filters.buildingName === "—"
+        ? ""
+        : "_" + filters.buildingName.replace(/\s+/g, "_");
+
+    doc.save(`gastos_${safeCondo}${safeBuilding}.pdf`);
   };
 
-  // Cargar condominios
+  // ===== CARGA DE DATOS =====
+
   const loadCondominiums = async () => {
     try {
       const res = await api.get("/condominiums");
@@ -89,7 +157,6 @@ Tipo: ${filters.type_expense || "Todos"}`,
     }
   };
 
-  // Cargar edificios, opcionalmente filtrando por condominio
   const loadBuildings = async (condoId?: string) => {
     try {
       const res = await api.get("/buildings", {
@@ -101,7 +168,6 @@ Tipo: ${filters.type_expense || "Todos"}`,
     }
   };
 
-  // Cargar gastos, filtrando opcionalmente por condominio y edificio
   const loadExpenses = async (
     buildingId?: string,
     condoId?: string,
@@ -127,6 +193,8 @@ Tipo: ${filters.type_expense || "Todos"}`,
   useEffect(() => {
     loadCondominiums();
   }, []);
+
+  // ===== HANDLERS DE FILTROS =====
 
   const handleCondoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const cId = e.target.value;
@@ -174,6 +242,8 @@ Tipo: ${filters.type_expense || "Todos"}`,
   const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
   const totalCount = expenses.length;
 
+  // ===== UI =====
+
   return (
     <div className="flex">
       <Sidebar />
@@ -191,7 +261,7 @@ Tipo: ${filters.type_expense || "Todos"}`,
           <div className="flex flex-wrap gap-2 justify-start md:justify-end">
             <button
               onClick={generatePDF}
-              className="px-4 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 text-sm flex items-center gap-2"
+              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg shadow-sm hover:bg-gray-50 text-sm flex items-center gap-2 disabled:opacity-50"
               disabled={!expenses.length}
             >
               🧾 Descargar PDF
@@ -208,9 +278,7 @@ Tipo: ${filters.type_expense || "Todos"}`,
 
         {/* Filtros en tarjeta */}
         <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">
-            Filtros
-          </h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Filtros</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Condominio */}
             <div>

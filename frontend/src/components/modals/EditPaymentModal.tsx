@@ -1,6 +1,6 @@
 // src/components/modals/EditPaymentModal.tsx
 import { useEffect, useState } from "react";
-import { updatePayment } from "../../services/payments";
+import { updatePayment, getPaymentTypes } from "../../services/payments";
 import { getDepartments } from "../../services/departments";
 import { Department } from "../types/Department";
 
@@ -13,6 +13,7 @@ interface Payment {
   date: string;
   payment_method?: string;
   document_number?: string;
+  type_income?: string; // 👈 nuevo
 }
 
 interface EditPaymentModalProps {
@@ -47,6 +48,12 @@ export function EditPaymentModal({
     payment.document_number || ""
   );
 
+  // 👇 nuevo: tipo de ingreso
+  const [typeIncome, setTypeIncome] = useState<string>(
+    payment.type_income || ""
+  );
+  const [incomeTypes, setIncomeTypes] = useState<string[]>([]);
+
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -65,6 +72,19 @@ export function EditPaymentModal({
       loadDepartments();
     }
   }, [payment.building_id]);
+
+  // Cargar tipos de ingreso
+  useEffect(() => {
+    const loadTypes = async () => {
+      try {
+        const types = await getPaymentTypes();
+        setIncomeTypes(types);
+      } catch (err) {
+        console.error("Error cargando tipos de ingreso:", err);
+      }
+    };
+    loadTypes();
+  }, []);
 
   const submit = async () => {
     if (!departmentId) {
@@ -85,6 +105,7 @@ export function EditPaymentModal({
         date,
         payment_method: paymentMethod || undefined,
         document_number: documentNumber || undefined,
+        type_income: typeIncome || undefined, // 👈 nuevo
       });
 
       onRefresh();
@@ -138,6 +159,23 @@ export function EditPaymentModal({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
+
+        {/* 👇 Tipo de ingreso */}
+        <label className="block text-sm font-medium mb-1">
+          Tipo de ingreso
+        </label>
+        <select
+          className="border p-2 w-full mb-2"
+          value={typeIncome}
+          onChange={(e) => setTypeIncome(e.target.value)}
+        >
+          <option value="">No especificar</option>
+          {incomeTypes.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
 
         <label className="block text-sm font-medium mb-1">
           Método de pago
