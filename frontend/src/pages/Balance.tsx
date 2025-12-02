@@ -33,6 +33,14 @@ interface Payment {
   };
 }
 
+// 🔹 Helper: parsear YYYY-MM-DD como fecha local (sin problema de timezone)
+const parseLocalDate = (dateStr: string) => {
+  if (!dateStr) return null;
+  const [year, month, day] = dateStr.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+};
+
 export default function Balance() {
   const [condominiums, setCondominiums] = useState<Condominium[]>([]);
   const [buildings, setBuildings] = useState<Building[]>([]);
@@ -182,7 +190,8 @@ export default function Balance() {
 
     return items.filter((item) => {
       if (!item.date) return false;
-      const d = new Date(item.date);
+      const d = parseLocalDate(item.date);
+      if (!d) return false;
 
       const matchesMonth = selectedMonth
         ? d.getMonth() + 1 === Number(selectedMonth)
@@ -215,12 +224,12 @@ export default function Balance() {
   const balance = totalIncomes - totalExpenses;
 
   const previousExpenses = expenses.filter((e) => {
-    const d = new Date(e.date);
-    return d < periodStart;
+    const d = parseLocalDate(e.date);
+    return d ? d < periodStart : false;
   });
   const previousPayments = payments.filter((p) => {
-    const d = new Date(p.date);
-    return d < periodStart;
+    const d = parseLocalDate(p.date);
+    return d ? d < periodStart : false;
   });
   const saldoAnterior =
     previousPayments.reduce((s, p) => s + (p.amount || 0), 0) -
@@ -231,7 +240,6 @@ export default function Balance() {
   const generatePDF = () => {
     const doc = new jsPDF("p", "mm", "a4");
 
-    // --- Helpers internos ---
     const formatCurrency = (value: number) =>
       `$${(value || 0).toLocaleString("es-CL")}`;
 
@@ -239,13 +247,18 @@ export default function Balance() {
       monthOptions.find((m) => m.value === selectedMonth)?.label?.toUpperCase() ||
       "";
 
-    // 🧮 Recalcular rápido con lo que ya tienes en el front
-    const periodStart = new Date(Number(selectedYear), Number(selectedMonth) - 1, 1);
+    const periodStart = new Date(
+      Number(selectedYear),
+      Number(selectedMonth) - 1,
+      1
+    );
 
     const filterByPeriod = <T extends { date: string }>(items: T[]): T[] => {
       return items.filter((item) => {
         if (!item.date) return false;
-        const d = new Date(item.date);
+        const d = parseLocalDate(item.date);
+        if (!d) return false;
+
         const matchesMonth = d.getMonth() + 1 === Number(selectedMonth);
         const matchesYear = d.getFullYear() === Number(selectedYear);
         return matchesMonth && matchesYear;
@@ -255,11 +268,23 @@ export default function Balance() {
     const periodExpenses = filterByPeriod(expenses);
     const periodPayments = filterByPeriod(payments);
 
-    const totalExpenses = periodExpenses.reduce((s, e) => s + (e.amount || 0), 0);
-    const totalIncomes = periodPayments.reduce((s, p) => s + (p.amount || 0), 0);
+    const totalExpenses = periodExpenses.reduce(
+      (s, e) => s + (e.amount || 0),
+      0
+    );
+    const totalIncomes = periodPayments.reduce(
+      (s, p) => s + (p.amount || 0),
+      0
+    );
 
-    const previousExpenses = expenses.filter((e) => new Date(e.date) < periodStart);
-    const previousPayments = payments.filter((p) => new Date(p.date) < periodStart);
+    const previousExpenses = expenses.filter((e) => {
+      const d = parseLocalDate(e.date);
+      return d ? d < periodStart : false;
+    });
+    const previousPayments = payments.filter((p) => {
+      const d = parseLocalDate(p.date);
+      return d ? d < periodStart : false;
+    });
 
     const saldoAnterior =
       previousPayments.reduce((s, p) => s + (p.amount || 0), 0) -
@@ -289,7 +314,6 @@ export default function Balance() {
     const saldoFinal = totalIngresosConSaldo - totalExpenses;
 
     // ============== HEADER ==============
-    // Caja “mes/año” arriba derecha (la dejamos donde estaba)
     doc.setDrawColor(0);
     doc.setLineWidth(0.2);
     doc.rect(170, 10, 28, 8);
@@ -297,7 +321,6 @@ export default function Balance() {
     doc.setFontSize(9);
     doc.text(`${monthLabel} ${selectedYear}`, 171, 15, { align: "left" });
 
-    // Título central (un poco más abajo)
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.text("RESUMEN GASTOS E INGRESOS DE DINERO", 105, 20, {
@@ -308,29 +331,23 @@ export default function Balance() {
     doc.setFont("helvetica", "normal");
     doc.text(`Periodo: ${filters.periodLabel}`, 105, 25, { align: "center" });
 
-    // Caja superior izquierda (la bajamos para que no choque)
     doc.setDrawColor(0);
     doc.setLineWidth(0.2);
-    doc.rect(12, 30, 80, 18); // antes estaba en y=10
+    doc.rect(12, 30, 80, 18);
     doc.text("Condominio Organizado", 14, 35);
     doc.text(`Condominio: ${filters.condominiumName}`, 14, 40);
     if (filters.buildingName !== "—") {
       doc.text(`Edificio: ${filters.buildingName}`, 14, 45);
     }
 
-    // Línea horizontal un poco más abajo
     doc.line(12, 52, 198, 52);
 
-    // SALDO ANTERIOR también lo bajamos
     doc.setFont("helvetica", "bold");
     doc.text("SALDO EN CAJA MES ANTERIOR:", 14, 58);
     doc.text(formatCurrency(saldoAnterior), 198, 58, { align: "right" });
 
-    // Y a partir de aquí usas este currentY inicial:
     let currentY = 64;
 
-
-    // ===== helper para secciones de gastos =====
     const addExpenseSection = (
       titulo: string,
       numeracion: string,
@@ -338,7 +355,6 @@ export default function Balance() {
     ) => {
       if (!rows.length) return currentY;
 
-      // fondo gris título sección
       doc.setFillColor(245, 245, 245);
       doc.rect(12, currentY - 4, 186, 6, "F");
       doc.setFontSize(9);
@@ -380,7 +396,6 @@ export default function Balance() {
       return currentY;
     };
 
-    // ============== GASTOS (3 BLOQUES) ==============
     currentY = addExpenseSection(
       "Remuneraciones y Gastos de Administración",
       "1",
@@ -397,14 +412,12 @@ export default function Balance() {
       gastos3
     );
 
-    // TOTAL GASTOS MES
     doc.setFont("helvetica", "bold");
     doc.setFillColor(245, 245, 245);
     doc.rect(12, currentY - 4, 186, 7, "F");
     doc.text("TOTAL GASTOS DEL MES", 14, currentY);
     doc.text(formatCurrency(totalExpenses), 198, currentY, { align: "right" });
 
-    // ============== RESUMEN INGRESOS ==============
     currentY += 10;
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
@@ -439,7 +452,6 @@ export default function Balance() {
       align: "right",
     });
 
-    // ============== RESUMEN EGRESOS ==============
     afterIngresosY += 10;
     doc.setFont("helvetica", "bold");
     doc.text("RESUMEN EGRESOS", 14, afterIngresosY);
@@ -474,7 +486,6 @@ export default function Balance() {
 
     const afterEgresosY = (doc as any).lastAutoTable.finalY + 5;
 
-    // ============== SALDO FINAL ==============
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setFillColor(240, 240, 240);
@@ -484,7 +495,6 @@ export default function Balance() {
       align: "right",
     });
 
-    // Notas al pie (como en el ejemplo)
     const footerY = afterEgresosY + 10;
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
@@ -522,7 +532,10 @@ export default function Balance() {
               <p className="mt-1 text-xs text-slate-100/70">
                 {filters.condominiumName !== "—" && (
                   <>
-                    Condominio <span className="font-semibold">{filters.condominiumName}</span>
+                    Condominio{" "}
+                    <span className="font-semibold">
+                      {filters.condominiumName}
+                    </span>
                     {filters.buildingName !== "—" && (
                       <>
                         {" · "}Edificio{" "}
@@ -672,8 +685,9 @@ export default function Balance() {
               Saldo Neto del Periodo
             </span>
             <p
-              className={`text-2xl font-bold ${balance >= 0 ? "text-emerald-600" : "text-orange-500"
-                }`}
+              className={`text-2xl font-bold ${
+                balance >= 0 ? "text-emerald-600" : "text-orange-500"
+              }`}
             >
               {formatCurrency(balance)}
             </p>
@@ -699,9 +713,7 @@ export default function Balance() {
               </span>
             </div>
             {loading ? (
-              <p className="p-4 text-gray-600 text-sm">
-                Cargando gastos...
-              </p>
+              <p className="p-4 text-gray-600 text-sm">Cargando gastos...</p>
             ) : filteredExpenses.length === 0 ? (
               <p className="p-4 text-gray-500 text-sm">
                 No hay gastos para el periodo seleccionado.
@@ -762,9 +774,7 @@ export default function Balance() {
               </span>
             </div>
             {loading ? (
-              <p className="p-4 text-gray-600 text-sm">
-                Cargando ingresos...
-              </p>
+              <p className="p-4 text-gray-600 text-sm">Cargando ingresos...</p>
             ) : filteredPayments.length === 0 ? (
               <p className="p-4 text-gray-500 text-sm">
                 No hay ingresos para el periodo seleccionado.

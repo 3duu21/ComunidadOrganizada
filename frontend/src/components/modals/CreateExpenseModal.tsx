@@ -6,11 +6,22 @@ interface Props {
   onClose: () => void;
 }
 
+const PAYMENT_OPTIONS = [
+  "Transferencia",
+  "Efectivo",
+  "Tarjeta",
+  "Cheque",
+  "Caja chica",
+];
+
 const CreateExpenseModal: React.FC<Props> = ({ onClose, buildingId }) => {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [typeExpense, setTypeExpense] = useState("");
   const [date, setDate] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [documentNumber, setDocumentNumber] = useState("");
+
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -21,12 +32,19 @@ const CreateExpenseModal: React.FC<Props> = ({ onClose, buildingId }) => {
       return;
     }
 
+    if (!amount || !typeExpense || !date) {
+      alert("Monto, tipo de gasto y fecha son obligatorios.");
+      return;
+    }
+
     const payload = {
       amount: Number(amount),
-      description,
+      description: description || undefined,
       type_expense: typeExpense,
       building_id: buildingId,
       date,
+      payment_method: paymentMethod || undefined,
+      document_number: documentNumber || undefined,
     };
 
     try {
@@ -71,7 +89,9 @@ const CreateExpenseModal: React.FC<Props> = ({ onClose, buildingId }) => {
 
           {/* Tipo gasto */}
           <div>
-            <label className="block text-sm font-medium mb-1">Tipo de gasto</label>
+            <label className="block text-sm font-medium mb-1">
+              Tipo de gasto
+            </label>
             <select
               className="w-full border p-2 rounded"
               value={typeExpense}
@@ -79,9 +99,15 @@ const CreateExpenseModal: React.FC<Props> = ({ onClose, buildingId }) => {
               required
             >
               <option value="">Seleccionar…</option>
-              <option value="Remuneraciones y Gastos de Administracion">Remuneraciones y Gastos de Administracion</option>
-              <option value="Gastos Generales y Gastos de uso y consumo">Gastos Generales y Gastos de uso y consumo</option>
-              <option value="Gastos de Mantencion y Reparacion">Gastos de Mantencion y Reparacion</option>
+              <option value="Remuneraciones y Gastos de Administracion">
+                Remuneraciones y Gastos de Administracion
+              </option>
+              <option value="Gastos Generales y Gastos de uso y consumo">
+                Gastos Generales y Gastos de uso y consumo
+              </option>
+              <option value="Gastos de Mantencion y Reparacion">
+                Gastos de Mantencion y Reparacion
+              </option>
             </select>
           </div>
 
@@ -94,6 +120,39 @@ const CreateExpenseModal: React.FC<Props> = ({ onClose, buildingId }) => {
               value={date}
               onChange={(e) => setDate(e.target.value)}
               required
+            />
+          </div>
+
+          {/* Método de pago */}
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Método de pago
+            </label>
+            <select
+              className="w-full border p-2 rounded"
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+            >
+              <option value="">No especificar</option>
+              {PAYMENT_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Número de documento */}
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              N° documento
+            </label>
+            <input
+              type="text"
+              className="w-full border p-2 rounded"
+              value={documentNumber}
+              onChange={(e) => setDocumentNumber(e.target.value)}
+              placeholder="Ej: F-12345, B-5678"
             />
           </div>
 

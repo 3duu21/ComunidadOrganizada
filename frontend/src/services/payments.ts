@@ -1,4 +1,17 @@
+// src/services/payments.ts
 import api from "./api";
+
+export interface PaymentCreate {
+  building_id: string;
+  department_id: string;
+  amount: number;
+  description?: string;
+  date: string;
+  payment_method?: string;
+  document_number?: string;
+}
+
+export interface PaymentUpdate extends Partial<PaymentCreate> {}
 
 // Listar pagos, opcionalmente por edificio y condominio
 export const getPayments = async (buildingId?: string, condoId?: string) => {
@@ -11,13 +24,13 @@ export const getPayments = async (buildingId?: string, condoId?: string) => {
 };
 
 // Crear pago
-export const createPayment = async (data: any) => {
+export const createPayment = async (data: PaymentCreate) => {
   const res = await api.post("/payments", data);
   return res.data;
 };
 
 // Editar pago
-export const updatePayment = async (id: string, data: any) => {
+export const updatePayment = async (id: string, data: PaymentUpdate) => {
   const res = await api.put(`/payments/${id}`, data);
   return res.data;
 };

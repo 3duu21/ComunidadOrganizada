@@ -1,22 +1,52 @@
-
+// src/expenses/dto/create-expense.dto.ts
+import {
+  IsString,
+  IsUUID,
+  IsNumber,
+  IsOptional,
+  IsDateString,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateExpenseDto {
-  @ApiProperty({ example: 'd44a2c69-cc20-4e29-af3e-af79f63fb087' })
+  @ApiProperty()
+  @IsUUID()
   building_id: string;
 
-  @ApiProperty({ example: 90000 })
+  @ApiProperty({ example: '2025-11-22' })
+  @IsDateString()
+  date: string;
+
+  @ApiProperty({ example: 500000 })
+  @IsNumber()
   amount: number;
 
-  @ApiProperty({ example: 'Reparación de portón', required: false })
+  @ApiProperty({
+    example: 'Remuneraciones y Gastos de Administracion',
+  })
+  @IsString()
+  type_expense: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   description?: string;
 
-  @ApiProperty({ example: '2025-01-10' })
-  date?: string;
-
+  // 🔹 NUEVO: método de pago
   @ApiProperty({
-    example: 'mantencion',
-    description: 'Tipo de gasto (mantencion, remuneracion, gastos_generales)'
+    required: false,
+    example: 'Transferencia',
   })
-  type_expense: string;
+  @IsOptional()
+  @IsString()
+  payment_method?: string;
+
+  // 🔹 NUEVO: número de documento
+  @ApiProperty({
+    required: false,
+    example: 'F-12345',
+  })
+  @IsOptional()
+  @IsString()
+  document_number?: string;
 }

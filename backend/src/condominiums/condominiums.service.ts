@@ -1,76 +1,64 @@
-import { Injectable, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 export interface Condominium {
   id: string;
   name: string;
-  // si en tu tabla hay más columnas, las puedes agregar aquí
+  created_at?: string;
 }
-
-export interface CondominiumWithRole extends Condominium {
-  role: string;
-}
-
-type UserCondoRelation = {
-  condominium_id: string;
-  role: string | null;
-};
 
 @Injectable()
 export class CondominiumsService {
   constructor(@Inject('SUPABASE') private supabase: SupabaseClient) {}
 
-  // 🔐 Listar los condominios de un usuario (usando tabla pivote user_condominiums)
-  async findForUser(userId: number): Promise<CondominiumWithRole[]> {
-    // 1) Traer relaciones user-condominio
-    const { data: relations, error: relError } = await this.supabase
+  // 🔵 Lista SOLO los condominios del usuario
+  async findForUser(userId: number): Promise<Condominium[]> {
+    // 1) buscar en la pivote user_condominiums
+    const { data: links, error } = await this.supabase
       .from('user_condominiums')
-      .select('condominium_id, role')
+      .select('condominium_id')
       .eq('user_id', userId);
 
-    if (relError) throw relError;
+    if (error) throw error;
 
-    const rels = (relations || []) as UserCondoRelation[];
-
-    if (rels.length === 0) {
+    if (!links || links.length === 0) {
       return [];
     }
 
-    const ids = rels.map((r) => r.condominium_id);
+    const ids = links.map((l) => l.condominium_id);
 
-    // 2) Traer los condominios correspondientes
-    const { data: condos, error: condosError } = await this.supabase
+    // 2) traer solo esos condominios
+    const { data: condos, error: error2 } = await this.supabase
       .from('condominiums')
       .select('*')
-      .in('id', ids);
-
-    if (condosError) throw condosError;
-
-    const condosTyped = (condos || []) as Condominium[];
-
-    // 3) Mezclar datos del condominio con el rol del usuario en cada uno
-    return condosTyped.map((c) => {
-      const relation = rels.find((r) => r.condominium_id === c.id);
-      return {
-        ...c,
-        role: relation?.role || 'viewer',
-      };
-    });
-  }
-
-  // Listar todos los condominios
-  async findAll(): Promise<Condominium[]> {
-    const { data, error } = await this.supabase
-      .from('condominiums')
-      .select('*')
+      .in('id', ids)
       .order('name', { ascending: true });
 
-    if (error) throw error;
-    return data as Condominium[];
+    if (error2) throw error2;
+
+    return condos as Condominium[];
   }
 
-  // Obtener uno por ID
-  async findOne(id: string): Promise<Condominium> {
+  // Obtener uno por ID, validando acceso
+  async findOne(id: string, userId: number): Promise<Condominium> {
+    // validar que el condominio esté asociado a este usuario
+    const { data: link, error: linkError } = await this.supabase
+      .from('user_condominiums')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('condominium_id', id)
+      .maybeSingle();
+
+    if (linkError) throw linkError;
+    if (!link) {
+      throw new ForbiddenException('No tienes acceso a este condominio');
+    }
+
     const { data, error } = await this.supabase
       .from('condominiums')
       .select('*')
@@ -78,11 +66,16 @@ export class CondominiumsService {
       .single();
 
     if (error) throw error;
+    if (!data) throw new NotFoundException('Condominio no encontrado');
+
     return data as Condominium;
   }
 
-  // Crear un condominio
-  async create(data: { name: string }) {
+  // Crear un condominio (y asociarlo al usuario como admin)
+  async create(
+    data: { name: string },
+    userId: number,
+  ): Promise<Condominium> {
     const { data: result, error } = await this.supabase
       .from('condominiums')
       .insert(data)
@@ -90,11 +83,40 @@ export class CondominiumsService {
       .single();
 
     if (error) throw error;
-    return result;
+
+    // asociar al usuario en la pivote
+    const { error: linkError } = await this.supabase
+      .from('user_condominiums')
+      .insert({
+        user_id: userId,
+        condominium_id: result.id,
+        role: 'admin',
+      });
+
+    if (linkError) throw linkError;
+
+    return result as Condominium;
   }
 
-  // Editar condominio
-  async update(id: string, data: { name: string }) {
+  // Editar condominio (validando acceso)
+  async update(
+    id: string,
+    data: { name: string },
+    userId: number,
+  ): Promise<Condominium> {
+    // validar acceso
+    const { data: link, error: linkError } = await this.supabase
+      .from('user_condominiums')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('condominium_id', id)
+      .maybeSingle();
+
+    if (linkError) throw linkError;
+    if (!link) {
+      throw new ForbiddenException('No tienes acceso a este condominio');
+    }
+
     const { data: result, error } = await this.supabase
       .from('condominiums')
       .update(data)
@@ -103,17 +125,32 @@ export class CondominiumsService {
       .single();
 
     if (error) throw error;
-    return result;
+    if (!result) throw new NotFoundException('Condominio no encontrado');
+
+    return result as Condominium;
   }
 
-  // Eliminar condominio
-  async remove(id: string) {
+  // Eliminar condominio (validando acceso)
+  async remove(id: string, userId: number) {
+    // validar acceso
+    const { data: link, error: linkError } = await this.supabase
+      .from('user_condominiums')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('condominium_id', id)
+      .maybeSingle();
+
+    if (linkError) throw linkError;
+    if (!link) {
+      throw new ForbiddenException('No tienes acceso a este condominio');
+    }
+
     const { error } = await this.supabase
       .from('condominiums')
       .delete()
       .eq('id', id);
 
     if (error) throw error;
-    return { message: 'Condominium deleted successfully' };
+    return { message: 'Condominio eliminado correctamente' };
   }
 }

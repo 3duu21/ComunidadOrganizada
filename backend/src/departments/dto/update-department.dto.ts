@@ -1,15 +1,5 @@
-import { IsString, IsUUID, IsOptional, IsNumber } from 'class-validator';
+// update-department.dto.ts
+import { PartialType } from '@nestjs/swagger';
+import { CreateDepartmentDto } from './create-department.dto';
 
-export class UpdateDepartmentDto {
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @IsOptional()
-  @IsUUID()
-  building_id?: string;
-
-  @IsOptional()
-  @IsNumber()
-  monthly_fee?: number;
-}
+export class UpdateDepartmentDto extends PartialType(CreateDepartmentDto) {}

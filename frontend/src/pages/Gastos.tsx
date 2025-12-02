@@ -336,6 +336,9 @@ Tipo: ${filters.type_expense || "Todos"}`,
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Numero Doc.
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Fecha
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -348,6 +351,9 @@ Tipo: ${filters.type_expense || "Todos"}`,
                     Monto
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tipo Pago
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Acciones
                   </th>
                 </tr>
@@ -355,6 +361,9 @@ Tipo: ${filters.type_expense || "Todos"}`,
               <tbody className="bg-white divide-y divide-gray-200">
                 {expenses.map((exp) => (
                   <tr key={exp.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {exp.document_number}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       {exp.date}
                     </td>
@@ -366,6 +375,9 @@ Tipo: ${filters.type_expense || "Todos"}`,
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-right text-red-500">
                       {formatCurrency(exp.amount)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {exp.payment_method}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       <button

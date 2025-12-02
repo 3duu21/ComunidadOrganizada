@@ -1,14 +1,20 @@
 import api from "./api";
 
-interface DepartmentCreate {
+export interface DepartmentCreate {
   floor: number;
   number: string;
   building_id: string;
+  monthly_fee?: number;
+  owner_name?: string;
+  owner_email?: string;
 }
 
-interface DepartmentUpdate {
+export interface DepartmentUpdate {
   floor?: number;
   number?: string;
+  monthly_fee?: number;
+  owner_name?: string;
+  owner_email?: string;
 }
 
 // Traer departamentos por edificio

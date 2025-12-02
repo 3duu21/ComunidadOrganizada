@@ -8,6 +8,8 @@ import Edificios from "../pages/Edificios";
 import Balance from "../pages/Balance";
 import Condominios from "../pages/Condominios";
 import Estacionamientos from "../pages/Estacionamientos";
+import Perfil from "../pages/Perfil";
+import Configuracion from "../pages/Configuracion";
 
 import Login from "../pages/Login";             // ⬅️ nueva página
 import ProtectedRoute from "./ProtectedRoute";  // ⬅️ nuevo componente
@@ -88,6 +90,22 @@ export default function AppRoutes() {
           element={
             <ProtectedRoute>
               <Balance />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/perfil"
+          element={
+            <ProtectedRoute>
+              <Perfil />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configuracion"
+          element={
+            <ProtectedRoute>
+              <Configuracion />
             </ProtectedRoute>
           }
         />

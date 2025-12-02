@@ -10,14 +10,34 @@ export default function CreateDepartmentModal({ buildingId, onClose }: Props) {
   const [floor, setFloor] = useState<number | "">("");
   const [number, setNumber] = useState<string>("");
 
+  const [ownerName, setOwnerName] = useState<string>("");
+  const [ownerEmail, setOwnerEmail] = useState<string>("");
+
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
-    if (!floor || !number || !buildingId) return alert("Complete todos los campos");
+    if (!buildingId) return alert("Falta el edificio");
+
+    if (floor === "" || !number) {
+      return alert("Completa piso y número");
+    }
+
+    // Validación opcional de email si se ingresa algo
+    if (ownerEmail && !ownerEmail.includes("@")) {
+      return alert("Correo de propietario no es válido");
+    }
 
     setLoading(true);
     try {
-      await createDepartment({ floor, number, building_id: buildingId });
+      await createDepartment({
+        building_id: buildingId,
+        floor: Number(floor),
+        number,
+        owner_name: ownerName || undefined,
+        owner_email: ownerEmail || undefined,
+        // si quieres puedes mandar monthly_fee también
+        // monthly_fee: 10000,
+      });
       onClose();
     } catch (err) {
       console.error("Error creando departamento:", err);
@@ -38,7 +58,10 @@ export default function CreateDepartmentModal({ buildingId, onClose }: Props) {
             type="number"
             className="w-full border p-2 rounded"
             value={floor}
-            onChange={(e) => setFloor(Number(e.target.value))}
+            onChange={(e) => {
+              const val = e.target.value;
+              setFloor(val === "" ? "" : Number(val));
+            }}
           />
         </div>
 
@@ -52,6 +75,28 @@ export default function CreateDepartmentModal({ buildingId, onClose }: Props) {
           />
         </div>
 
+        <div className="mb-3">
+          <label className="block mb-1 font-medium">Propietario</label>
+          <input
+            type="text"
+            className="w-full border p-2 rounded"
+            value={ownerName}
+            onChange={(e) => setOwnerName(e.target.value)}
+            placeholder="Nombre del dueño (opcional)"
+          />
+        </div>
+
+        <div className="mb-3">
+          <label className="block mb-1 font-medium">Correo del propietario</label>
+          <input
+            type="email"
+            className="w-full border p-2 rounded"
+            value={ownerEmail}
+            onChange={(e) => setOwnerEmail(e.target.value)}
+            placeholder="correo@ejemplo.com (opcional)"
+          />
+        </div>
+
         <div className="flex justify-end mt-4">
           <button
             onClick={onClose}
@@ -62,7 +107,7 @@ export default function CreateDepartmentModal({ buildingId, onClose }: Props) {
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-60"
           >
             {loading ? "Creando..." : "Crear"}
           </button>

@@ -10,9 +10,9 @@ interface BuildingUpdate {
 }
 
 // Traer edificios por condominio
-export const getBuildings = async (condominiumId?: string) => {
+export const getBuildings = async (condominiumId: string) => {
   const res = await api.get("/buildings", {
-    params: { condominium_id: condominiumId }
+    params: { condominium_id: condominiumId },
   });
   return res.data;
 };

@@ -27,26 +27,42 @@ export default function Edificios() {
       condominiums.find((c) => c.id === selectedCondoId)?.name || "—",
   };
 
-  // Traer condominios
+  // Traer condominios y setear uno por defecto
   const loadCondominiums = async () => {
     try {
+      setLoading(true);
       const res = await api.get("/condominiums");
-      setCondominiums(res.data);
+      const data: Condominium[] = res.data;
+      setCondominiums(data);
+
+      if (data.length > 0) {
+        // Por defecto, usamos el primer condominio del usuario
+        const defaultCondoId = data[0].id;
+        setSelectedCondoId(defaultCondoId);
+        await loadBuildingsData(defaultCondoId);
+      } else {
+        setBuildings([]);
+      }
     } catch (err) {
       console.error("Error cargando condominios:", err);
+      setCondominiums([]);
+      setBuildings([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Traer edificios filtrados por condominio (o todos si no se pasa condoId)
-  const loadBuildingsData = async (condoId?: string) => {
+  // Traer edificios filtrados por condominio (OBLIGATORIO condoId)
+  const loadBuildingsData = async (condoId: string) => {
+    if (!condoId) {
+      // si por alguna razón llega vacío, no llamamos al backend
+      setBuildings([]);
+      return;
+    }
+
     try {
       setLoading(true);
-      let data;
-      if (condoId && condoId !== "") {
-        data = await getBuildings(condoId);
-      } else {
-        data = await api.get("/buildings").then((res) => res.data);
-      }
+      const data = await getBuildings(condoId);
 
       // Ordenar por nombre de menor a mayor
       data.sort((a: any, b: any) => a.name.localeCompare(b.name));
@@ -62,13 +78,19 @@ export default function Edificios() {
 
   useEffect(() => {
     loadCondominiums();
-    loadBuildingsData(); // opcional: carga todos al inicio
+    // ❌ quitamos loadBuildingsData() sin parámetro
   }, []);
 
   const handleCondoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const cId = e.target.value;
     setSelectedCondoId(cId);
-    loadBuildingsData(cId || undefined);
+
+    if (cId) {
+      loadBuildingsData(cId);
+    } else {
+      // Si decides dejar la opción "Todos", que no llame al backend
+      setBuildings([]);
+    }
   };
 
   const handleEdit = (building: any) => {
@@ -122,7 +144,8 @@ export default function Edificios() {
                 value={selectedCondoId}
                 onChange={handleCondoChange}
               >
-                <option value="">Todos</option>
+                {/* Si NO quieres "Todos", puedes quitar esta opción */}
+                <option value="">Seleccione un condominio</option>
                 {condominiums.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -209,7 +232,7 @@ export default function Edificios() {
             condominiumId={selectedCondoId}
             onClose={() => {
               setOpenCreateModal(false);
-              loadBuildingsData(selectedCondoId || undefined);
+              loadBuildingsData(selectedCondoId);
             }}
           />
         )}
@@ -219,7 +242,7 @@ export default function Edificios() {
             building={selectedBuilding}
             onClose={() => {
               setOpenEditModal(false);
-              loadBuildingsData(selectedCondoId || undefined);
+              loadBuildingsData(selectedCondoId);
             }}
           />
         )}
@@ -229,7 +252,7 @@ export default function Edificios() {
             building={selectedBuilding}
             onClose={() => {
               setOpenDeleteModal(false);
-              loadBuildingsData(selectedCondoId || undefined);
+              loadBuildingsData(selectedCondoId);
             }}
           />
         )}

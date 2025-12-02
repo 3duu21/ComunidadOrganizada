@@ -7,9 +7,9 @@ export interface Condominium {
   created_at?: string;
 }
 
-// ✔ SOLO los condominios del usuario logeado
+// DESPUÉS
 export const getCondominiums = async (): Promise<Condominium[]> => {
-  const res = await api.get("/condominiums/my"); // 👈 CAMBIO CLAVE
+  const res = await api.get("/condominiums"); // 👈 misma ruta que el backend
   return res.data;
 };
 

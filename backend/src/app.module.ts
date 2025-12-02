@@ -13,6 +13,8 @@ import { BalanceModule } from './balance/balance.module';
 import { CondominiumsModule } from './condominiums/condominiums.module';
 import { ParkingsModule } from './parkings/parkings.module';
 import { AuthModule } from './auth/auth.module';
+import { AccessControlModule } from './access-control/access-control.module';
+import { MeModule } from './me/me.module';
 
 @Module({
   imports: [
@@ -32,6 +34,8 @@ import { AuthModule } from './auth/auth.module';
     CondominiumsModule,
     ParkingsModule,
     AuthModule,
+    AccessControlModule,
+    MeModule,
   ],
   controllers: [AppController],
   providers: [AppService],
