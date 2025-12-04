@@ -1,0 +1,1 @@
+INSERT INTO "public"."user_condominiums" ("id", "user_id", "condominium_id", "role") VALUES ('c51b5c90-dee0-4439-bf3f-43502c5ded5e', '2', '6eb30295-06ba-4ef7-a3bd-c122b028fb10', 'admin');

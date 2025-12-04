@@ -1,0 +1,1 @@
+INSERT INTO "public"."condominiums" ("id", "name", "created_at") VALUES ('6eb30295-06ba-4ef7-a3bd-c122b028fb10', 'Condominio Los Pinos', '2025-11-24 22:58:46.140396'), ('a715b7e4-0f72-40b6-a72b-e5efb1fbedb5', 'Condominio La Serena', '2025-11-24 22:58:46.140396');

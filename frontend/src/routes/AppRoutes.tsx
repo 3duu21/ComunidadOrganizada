@@ -10,6 +10,7 @@ import Condominios from "../pages/Condominios";
 import Estacionamientos from "../pages/Estacionamientos";
 import Perfil from "../pages/Perfil";
 import Configuracion from "../pages/Configuracion";
+import GastosComunes from "../pages/GastosComunes";
 
 import Login from "../pages/Login";             // ⬅️ nueva página
 import ProtectedRoute from "./ProtectedRoute";  // ⬅️ nuevo componente
@@ -45,6 +46,15 @@ export default function AppRoutes() {
           element={
             <ProtectedRoute>
               <Gastos />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/gastosComunes"
+          element={
+            <ProtectedRoute>
+              <GastosComunes />
             </ProtectedRoute>
           }
         />

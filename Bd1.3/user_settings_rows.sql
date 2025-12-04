@@ -1,0 +1,1 @@
+INSERT INTO "public"."user_settings" ("user_id", "default_condominium_id", "theme", "notify_email", "notify_morosidad", "created_at") VALUES ('2', null, 'light', 'true', 'true', '2025-12-01 03:39:50.489003');

@@ -20,6 +20,7 @@ const sections = [
     items: [
       { name: "Gastos", path: "/gastos", icon: "📉" },
       { name: "Ingresos", path: "/ingresos", icon: "📈" },
+      { name: "Gastos Comunes", path: "/gastosComunes", icon: "💸" },
       { name: "Balance", path: "/balance", icon: "📊" },
     ],
   },

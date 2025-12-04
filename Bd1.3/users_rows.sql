@@ -1,0 +1,1 @@
+INSERT INTO "public"."users" ("id", "email", "password_hash", "name", "role", "created_at", "phone", "avatar_url", "is_active") VALUES ('2', 'admin@test.com', '$2b$10$.cr4R8dKAQS82wcwvtBxx.RvpI3gs4lDRJndfxQOcjGO6uYc3v0aG', 'Admin Test', 'admin', '2025-11-27 03:19:47.42219', '994833280', null, 'true');

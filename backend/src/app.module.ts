@@ -15,6 +15,7 @@ import { ParkingsModule } from './parkings/parkings.module';
 import { AuthModule } from './auth/auth.module';
 import { AccessControlModule } from './access-control/access-control.module';
 import { MeModule } from './me/me.module';
+import { BillingPeriodsModule } from './billing-periods/billing-periods.module';
 
 @Module({
   imports: [
@@ -36,6 +37,8 @@ import { MeModule } from './me/me.module';
     AuthModule,
     AccessControlModule,
     MeModule,
+    BillingPeriodsModule,
+    
   ],
   controllers: [AppController],
   providers: [AppService],
