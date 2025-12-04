@@ -51,6 +51,12 @@ const items: DashboardItem[] = [
     icon: "📊",
     route: "/balance",
   },
+  {
+    label: "Gastos Comunes",
+    description: "Revisa los gastos comunes de cada departamento por periodo.",
+    icon: "💸",
+    route: "/gastosComunes",
+  },
 ];
 
 export default function Dashboard() {

@@ -4,6 +4,8 @@ import CreateDepartmentModal from "../components/modals/CreateDepartmentModal";
 import { EditDepartmentModal } from "../components/modals/EditDepartmentModal";
 import DeleteDepartmentModal from "../components/modals/DeleteDepartmentModal";
 import api from "../services/api";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface Condominium {
   id: string;
@@ -14,6 +16,36 @@ interface Building {
   id: string;
   name: string;
 }
+
+type HistoryStatus = "pagado" | "parcial" | "no_pagado";
+
+interface DepartmentHistoryRow {
+  period_id: string;
+  year: number;
+  month: number;
+  charge_amount: number;
+  paid_amount: number;
+  status: HistoryStatus;
+}
+
+const monthNames = [
+  "",
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
+
+const formatCurrency = (value: number) =>
+  `$${(value || 0).toLocaleString("es-CL")}`;
 
 export default function Departamentos() {
   const [condominiums, setCondominiums] = useState<Condominium[]>([]);
@@ -29,6 +61,12 @@ export default function Departamentos() {
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<any>(null);
+
+  // ===== Historial por depto =====
+  const [openHistoryModal, setOpenHistoryModal] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [history, setHistory] = useState<DepartmentHistoryRow[]>([]);
+  const [historyDepartment, setHistoryDepartment] = useState<any>(null);
 
   const filters = {
     condominiumName:
@@ -123,6 +161,179 @@ export default function Departamentos() {
   const handleDelete = (department: any) => {
     setSelectedDepartment(department);
     setOpenDeleteModal(true);
+  };
+
+  // ===== Abrir historial por departamento =====
+  const handleOpenHistory = async (dept: any) => {
+    if (!selectedBuildingId) {
+      alert("Debes seleccionar un edificio primero.");
+      return;
+    }
+
+    setHistoryDepartment(dept);
+    setOpenHistoryModal(true);
+    setHistory([]);
+    setHistoryLoading(true);
+
+    try {
+      const res = await api.get(
+        "/billing-periods/history/by-department",
+        {
+          params: {
+            building_id: selectedBuildingId,
+            department_id: dept.id,
+          },
+        }
+      );
+
+      setHistory(res.data || []);
+    } catch (e) {
+      console.error("Error cargando histórico de depto", e);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  // ===== PDF del historial =====
+  const generateHistoryPDF = () => {
+    if (!historyDepartment || history.length === 0) return;
+
+    const doc = new jsPDF("p", "mm", "a4");
+
+    const formatCurrencyPDF = (value: number) =>
+      `$${(value || 0).toLocaleString("es-CL")}`;
+
+    const todayLabel = new Date().toLocaleDateString("es-CL");
+
+    // Título
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text(
+      "HISTORIAL DE GASTO COMÚN POR DEPARTAMENTO",
+      105,
+      18,
+      { align: "center" }
+    );
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+
+    // Caja info izq
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.2);
+    doc.rect(12, 24, 120, 20);
+
+    doc.text("Condominio Organizado", 14, 29);
+    doc.text(`Condominio: ${filters.condominiumName}`, 14, 34);
+    if (filters.buildingName !== "—") {
+      doc.text(`Edificio: ${filters.buildingName}`, 14, 39);
+    }
+    doc.text(
+      `Depto: ${historyDepartment.number || "—"}`,
+      14,
+      44
+    );
+
+    // Info derecha
+    doc.text(`Fecha emisión: ${todayLabel}`, 198, 29, {
+      align: "right",
+    });
+
+    // Línea separadora
+    doc.line(12, 48, 198, 48);
+
+    // Cálculo totales
+    const totalCharged = history.reduce(
+      (s, h) => s + (h.charge_amount || 0),
+      0
+    );
+    const totalPaid = history.reduce(
+      (s, h) => s + (h.paid_amount || 0),
+      0
+    );
+
+    // Tabla
+    const body = history.map((h) => {
+      const saldo =
+        (h.charge_amount || 0) - (h.paid_amount || 0);
+
+      const statusLabel =
+        h.status === "pagado"
+          ? "Pagado"
+          : h.status === "parcial"
+          ? "Parcial"
+          : "No pagado";
+
+      return [
+        `${monthNames[h.month]} ${h.year}`,
+        formatCurrencyPDF(h.charge_amount),
+        formatCurrencyPDF(h.paid_amount),
+        formatCurrencyPDF(saldo),
+        statusLabel,
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 52,
+      head: [
+        ["Periodo", "Cobrado", "Pagado", "Saldo", "Estado"],
+      ],
+      body,
+      styles: {
+        fontSize: 8,
+      },
+      headStyles: {
+        fillColor: [250, 250, 250],
+        textColor: 40,
+        lineWidth: 0.1,
+      },
+      bodyStyles: {
+        lineWidth: 0.08,
+      },
+      columnStyles: {
+        0: { cellWidth: 40 },
+        1: { halign: "right" },
+        2: { halign: "right" },
+        3: { halign: "right" },
+        4: { cellWidth: 25 },
+      },
+      margin: { left: 12, right: 12 },
+      theme: "grid",
+    });
+
+    const finalY = (doc as any).lastAutoTable?.finalY || 60;
+
+    // Totales
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setFillColor(240, 240, 240);
+    doc.rect(12, finalY + 4, 186, 10, "F");
+
+    doc.text("TOTAL COBRADO:", 14, finalY + 10);
+    doc.text(formatCurrencyPDF(totalCharged), 90, finalY + 10, {
+      align: "right",
+    });
+
+    doc.text("TOTAL PAGADO:", 110, finalY + 10);
+    doc.text(formatCurrencyPDF(totalPaid), 198, finalY + 10, {
+      align: "right",
+    });
+
+    const safeCondo =
+      filters.condominiumName === "—"
+        ? "sin_condominio"
+        : filters.condominiumName.replace(/\s+/g, "_");
+    const safeBuilding =
+      filters.buildingName === "—"
+        ? ""
+        : "_" + filters.buildingName.replace(/\s+/g, "_");
+    const safeDept =
+      historyDepartment.number?.toString().replace(/\s+/g, "_") ||
+      "depto";
+
+    doc.save(
+      `historial_gc_${safeCondo}${safeBuilding}_depto_${safeDept}.pdf`
+    );
   };
 
   const totalCount = departments.length;
@@ -281,9 +492,15 @@ export default function Departamentos() {
                       </button>
                       <button
                         onClick={() => handleDelete(dep)}
-                        className="text-red-600 hover:text-red-800"
+                        className="text-red-600 hover:text-red-800 mr-3"
                       >
                         🗑 Eliminar
+                      </button>
+                      <button
+                        onClick={() => handleOpenHistory(dep)}
+                        className="text-indigo-600 hover:text-indigo-800"
+                      >
+                        📊 Historial GC
                       </button>
                     </td>
                   </tr>
@@ -293,7 +510,125 @@ export default function Departamentos() {
           )}
         </div>
 
-        {/* Modales */}
+        {/* Modal Historial de Gasto Común */}
+        {openHistoryModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+              {/* Header */}
+              <div className="px-4 py-3 border-b flex items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    Historial de Gasto Común
+                  </h3>
+                  {historyDepartment && (
+                    <p className="text-xs text-gray-500">
+                      Depto:{" "}
+                      <span className="font-semibold">
+                        {historyDepartment.number}
+                      </span>
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={generateHistoryPDF}
+                    disabled={historyLoading || history.length === 0}
+                    className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    🧾 Descargar PDF
+                  </button>
+                  <button
+                    onClick={() => setOpenHistoryModal(false)}
+                    className="text-gray-500 hover:text-gray-700 text-sm"
+                  >
+                    ✕ Cerrar
+                  </button>
+                </div>
+              </div>
+
+              {/* Contenido */}
+              <div className="flex-1 overflow-y-auto p-4">
+                {historyLoading ? (
+                  <p className="text-sm text-gray-500">
+                    Cargando historial...
+                  </p>
+                ) : history.length === 0 ? (
+                  <p className="text-sm text-gray-500">
+                    No hay periodos registrados para este departamento.
+                  </p>
+                ) : (
+                  <table className="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Periodo
+                        </th>
+                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Cobrado
+                        </th>
+                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Pagado
+                        </th>
+                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Saldo
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Estado
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {history.map((h) => {
+                        const saldo =
+                          (h.charge_amount || 0) - (h.paid_amount || 0);
+
+                        const statusLabel =
+                          h.status === "pagado"
+                            ? "Pagado"
+                            : h.status === "parcial"
+                            ? "Parcial"
+                            : "No pagado";
+
+                        const statusColor =
+                          h.status === "pagado"
+                            ? "bg-green-100 text-green-700"
+                            : h.status === "parcial"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : "bg-red-100 text-red-700";
+
+                        return (
+                          <tr key={h.period_id}>
+                            <td className="px-4 py-2 whitespace-nowrap text-gray-700">
+                              {monthNames[h.month]} {h.year}
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap text-right text-gray-700">
+                              {formatCurrency(h.charge_amount)}
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap text-right text-gray-700">
+                              {formatCurrency(h.paid_amount)}
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap text-right text-gray-700">
+                              {formatCurrency(saldo)}
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap">
+                              <span
+                                className={`px-2 py-1 rounded-full text-xs font-semibold ${statusColor}`}
+                              >
+                                {statusLabel}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modales CRUD */}
         {openCreateModal && (
           <CreateDepartmentModal
             buildingId={selectedBuildingId || undefined}
