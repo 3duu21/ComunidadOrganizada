@@ -16,8 +16,13 @@ export default function Login() {
     setError("");
 
     try {
-      await login(email, password);
-      window.location.href = "/";
+      const user = await login(email, password);
+
+      if (user.role === "admin") {
+        window.location.href = "/";
+      } else {
+        window.location.href = "/mi-panel";
+      }
     } catch (err: any) {
       setError(err.message || "Error al iniciar sesión");
     }

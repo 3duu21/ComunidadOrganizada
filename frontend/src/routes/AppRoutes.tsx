@@ -1,3 +1,4 @@
+// src/routes/AppRoutes.tsx
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Dashboard from "../pages/Dashboard";
@@ -11,9 +12,15 @@ import Estacionamientos from "../pages/Estacionamientos";
 import Perfil from "../pages/Perfil";
 import Configuracion from "../pages/Configuracion";
 import GastosComunes from "../pages/GastosComunes";
+import MisGastosComunes from "../pages/owner/MisGastosComunes";
 
-import Login from "../pages/Login";             // ⬅️ nueva página
-import ProtectedRoute from "./ProtectedRoute";  // ⬅️ nuevo componente
+import Login from "../pages/Login";
+import ProtectedRoute from "./ProtectedRoute";
+
+// 🔹 NUEVAS páginas para propietarios
+import MiPanel from "../pages/owner/MiPanel";
+import MisPagos from "../pages/owner/MisPagos";
+// Puedes crear luego MisGastosComunes si quieres algo más detallado
 
 export default function AppRoutes() {
   return (
@@ -22,11 +29,11 @@ export default function AppRoutes() {
         {/* Ruta pública (sin token) */}
         <Route path="/login" element={<Login />} />
 
-        {/* Rutas protegidas (requieren token en localStorage) */}
+        {/* RUTAS ADMIN */}
         <Route
           path="/"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute roles={["admin"]}>
               <Dashboard />
             </ProtectedRoute>
           }
@@ -35,7 +42,7 @@ export default function AppRoutes() {
         <Route
           path="/ingresos"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute roles={["admin"]}>
               <Ingresos />
             </ProtectedRoute>
           }
@@ -44,7 +51,7 @@ export default function AppRoutes() {
         <Route
           path="/gastos"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute roles={["admin"]}>
               <Gastos />
             </ProtectedRoute>
           }
@@ -53,7 +60,7 @@ export default function AppRoutes() {
         <Route
           path="/gastosComunes"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute roles={["admin"]}>
               <GastosComunes />
             </ProtectedRoute>
           }
@@ -62,7 +69,7 @@ export default function AppRoutes() {
         <Route
           path="/departamentos"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute roles={["admin"]}>
               <Departamentos />
             </ProtectedRoute>
           }
@@ -71,7 +78,7 @@ export default function AppRoutes() {
         <Route
           path="/edificios"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute roles={["admin"]}>
               <Edificios />
             </ProtectedRoute>
           }
@@ -80,7 +87,7 @@ export default function AppRoutes() {
         <Route
           path="/condominios"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute roles={["admin"]}>
               <Condominios />
             </ProtectedRoute>
           }
@@ -89,7 +96,7 @@ export default function AppRoutes() {
         <Route
           path="/estacionamientos"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute roles={["admin"]}>
               <Estacionamientos />
             </ProtectedRoute>
           }
@@ -98,24 +105,54 @@ export default function AppRoutes() {
         <Route
           path="/balance"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute roles={["admin"]}>
               <Balance />
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/perfil"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute roles={["admin", "owner"]}>
               <Perfil />
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/configuracion"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute roles={["admin"]}>
               <Configuracion />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* RUTAS PROPIETARIO */}
+        <Route
+          path="/mi-panel"
+          element={
+            <ProtectedRoute roles={["owner"]}>
+              <MiPanel />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/mis-pagos"
+          element={
+            <ProtectedRoute roles={["owner"]}>
+              <MisPagos />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/mis-gastos-comunes"
+          element={
+            <ProtectedRoute roles={["owner"]}>
+              <MisGastosComunes />
             </ProtectedRoute>
           }
         />

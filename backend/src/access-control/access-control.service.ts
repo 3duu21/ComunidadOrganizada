@@ -29,4 +29,30 @@ export class AccessControlService {
       );
     }
   }
+
+  // 🔹 NUEVO: asegurar que el usuario es dueño de un depto
+  async ensureUserIsOwnerOfDepartment(userId: number, departmentId: string) {
+    const { data, error } = await this.supabase
+      .from('department_users')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('department_id', departmentId)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) {
+      throw new ForbiddenException('No tienes acceso a este departamento');
+    }
+  }
+
+  // 🔹 NUEVO: obtener todos los deptos de un usuario
+  async getUserDepartments(userId: number) {
+    const { data, error } = await this.supabase
+      .from('department_users')
+      .select('department_id, departments(number, building_id)')
+      .eq('user_id', userId);
+
+    if (error) throw error;
+    return data || [];
+  }
 }

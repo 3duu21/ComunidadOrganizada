@@ -16,6 +16,7 @@ import { AuthModule } from './auth/auth.module';
 import { AccessControlModule } from './access-control/access-control.module';
 import { MeModule } from './me/me.module';
 import { BillingPeriodsModule } from './billing-periods/billing-periods.module';
+import { OwnerModule } from './owner/owner.module';
 
 @Module({
   imports: [
@@ -38,6 +39,8 @@ import { BillingPeriodsModule } from './billing-periods/billing-periods.module';
     AccessControlModule,
     MeModule,
     BillingPeriodsModule,
+    OwnerModule, 
+    
     
   ],
   controllers: [AppController],

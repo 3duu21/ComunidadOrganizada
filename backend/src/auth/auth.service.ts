@@ -6,21 +6,17 @@ import * as bcrypt from 'bcrypt';
 
 interface JwtPayload {
   userId: number;
-  role: string;
+  role: 'admin' | 'owner';
 }
-
-
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
     @Inject('SUPABASE') private readonly supabase: SupabaseClient,
-  ) { }
+  ) {}
 
   async validateUser(email: string, password: string) {
-  
-    // Traer usuario desde la tabla users
     const { data: user, error } = await this.supabase
       .from('users')
       .select('id, name, email, password_hash, role')
@@ -36,29 +32,22 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-
-
     return user;
   }
-
 
   async login(email: string, password: string) {
     const user = await this.validateUser(email, password);
 
+    // 👇 Normalizamos: cualquier cosa que no sea 'owner' lo tratamos como 'admin'
+    const normalizedRole: 'admin' | 'owner' =
+      user.role === 'owner' ? 'owner' : 'admin';
+
     const payload: JwtPayload = {
       userId: user.id,
-      role: user.role || 'user',
+      role: normalizedRole,
     };
 
     const token = await this.jwtService.signAsync(payload);
-
-    console.log('ENV URL:', process.env.SUPABASE_URL);
-    console.log('ENV KEY:', process.env.SUPABASE_KEY?.substring(0, 15) + '...');
-    console.log('Verifying users table...');
-
-    const test = await this.supabase.from('users').select('*');
-    console.log('🟧 SUPABASE RESULT:', test);
-
 
     return {
       token,
@@ -66,7 +55,7 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role,
+        role: normalizedRole,
       },
     };
   }

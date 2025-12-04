@@ -1,0 +1,1 @@
+INSERT INTO "public"."department_users" ("id", "user_id", "department_id", "created_at") VALUES ('ab53644e-b695-4bea-8f67-5cd02855005b', '3', 'c7372be2-f5d0-4cf4-9222-1980de167f75', '2025-12-04 00:50:41');
