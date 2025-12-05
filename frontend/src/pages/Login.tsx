@@ -1,22 +1,68 @@
 import { useState, FormEvent, useEffect } from "react";
-import { login } from "../services/auth";
+import { login, getCurrentUser } from "../services/auth";
+
+type FieldErrors = {
+  email?: string;
+  password?: string;
+};
 
 export default function Login() {
-  const [email, setEmail] = useState("admin@test.com");
-  const [password, setPassword] = useState("123456");
+  // 👇 En producción, NO dejar credenciales prellenadas
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [loaded, setLoaded] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setTimeout(() => setLoaded(true), 150);
+    // Animación
+    const timer = setTimeout(() => setLoaded(true), 150);
+
+    // 🔐 Si ya está logeado, redirigir al panel que corresponda
+    const user = getCurrentUser();
+    if (user) {
+      if (user.role === "admin") {
+        window.location.href = "/";
+      } else {
+        window.location.href = "/mi-panel";
+      }
+    }
+
+    return () => clearTimeout(timer);
   }, []);
+
+  function validate(): boolean {
+    const errs: FieldErrors = {};
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      errs.email = "Ingresa tu correo electrónico";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      errs.email = "Formato de correo inválido";
+    }
+
+    if (!password) {
+      errs.password = "Ingresa tu contraseña";
+    } else if (password.length < 5) {
+      errs.password = "La contraseña debe tener al menos 8 caracteres";
+    }
+
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
+    setFieldErrors({});
+
+    if (!validate()) return;
+    if (loading) return;
 
     try {
-      const user = await login(email, password);
+      setLoading(true);
+      const user = await login(email.trim(), password);
 
       if (user.role === "admin") {
         window.location.href = "/";
@@ -24,7 +70,10 @@ export default function Login() {
         window.location.href = "/mi-panel";
       }
     } catch (err: any) {
-      setError(err.message || "Error al iniciar sesión");
+      // Mensaje genérico para no revelar detalles de seguridad
+      setError("Correo o contraseña incorrectos");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -33,8 +82,6 @@ export default function Login() {
 
       {/* PANEL IZQUIERDO — IMAGEN CORPORATIVA DE EDIFICIOS */}
       <div className="hidden md:block relative overflow-hidden">
-
-        {/* Imagen lateral */}
         <img
           src="https://images.unsplash.com/photo-1505843513577-22bb7d21e455?q=80&w=2100&auto=format&fit=crop"
           alt="Condominio"
@@ -44,11 +91,8 @@ export default function Login() {
             ${loaded ? "scale-105 opacity-100" : "scale-100 opacity-0"}
           `}
         />
-
-        {/* Capa de color corporativo */}
         <div className="absolute inset-0 bg-gradient-to-br from-blue-900/60 via-blue-700/40 to-blue-500/30" />
 
-        {/* Logo + texto sobre la imagen */}
         <div className="absolute top-8 left-8 flex items-center gap-3 text-white">
           <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-md overflow-hidden">
             <img
@@ -67,7 +111,6 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Frase al pie */}
         <div className="absolute bottom-10 left-8 text-white max-w-sm">
           <p className="text-2xl font-semibold drop-shadow-md">
             Controla ingresos, gastos y edificios desde un solo lugar.
@@ -80,7 +123,6 @@ export default function Login() {
 
       {/* PANEL DERECHO — LOGIN */}
       <div className="flex items-center justify-center px-6 py-10 bg-gradient-to-br from-blue-50 to-gray-200">
-
         <div
           className={`
             w-full max-w-md bg-white shadow-2xl rounded-2xl p-10 border border-gray-200
@@ -88,7 +130,6 @@ export default function Login() {
             ${loaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}
           `}
         >
-          {/* Logo arriba en pequeño */}
           <div className="flex justify-center mb-4">
             <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-md overflow-hidden">
               <img
@@ -99,7 +140,6 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Título */}
           <h2 className="text-2xl font-bold text-gray-800 text-center mb-1">
             Bienvenido de nuevo
           </h2>
@@ -107,8 +147,11 @@ export default function Login() {
             Inicia sesión para acceder al panel de tu condominio
           </p>
 
-          {/* Formulario */}
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-5"
+            autoComplete="off"
+          >
             {/* Email */}
             <div>
               <label className="text-gray-700 text-sm mb-1 block">
@@ -117,13 +160,20 @@ export default function Login() {
               <input
                 type="email"
                 required
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 
-                           focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
-                           transition-all outline-none"
+                autoComplete="off"
+                className={`w-full px-4 py-3 rounded-lg border 
+                  ${fieldErrors.email ? "border-red-400" : "border-gray-300"}
+                  focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                  transition-all outline-none`}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="correo@dominio.com"
               />
+              {fieldErrors.email && (
+                <p className="text-xs text-red-600 mt-1">
+                  {fieldErrors.email}
+                </p>
+              )}
             </div>
 
             {/* Password */}
@@ -134,16 +184,23 @@ export default function Login() {
               <input
                 type="password"
                 required
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 
-                           focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
-                           transition-all outline-none"
+                autoComplete="new-password"
+                className={`w-full px-4 py-3 rounded-lg border 
+                  ${fieldErrors.password ? "border-red-400" : "border-gray-300"}
+                  focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
+                  transition-all outline-none`}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder=""
               />
+              {fieldErrors.password && (
+                <p className="text-xs text-red-600 mt-1">
+                  {fieldErrors.password}
+                </p>
+              )}
             </div>
 
-            {/* Error */}
+            {/* Error general */}
             {error && (
               <p className="bg-red-100 text-red-600 px-4 py-2 rounded-lg text-sm animate-shake">
                 {error}
@@ -153,19 +210,20 @@ export default function Login() {
             {/* Botón */}
             <button
               type="submit"
-              className="
+              disabled={loading}
+              className={`
                 w-full bg-blue-600 text-white py-3 rounded-lg font-semibold
                 hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl
                 active:scale-[0.97]
-              "
+                disabled:opacity-60 disabled:cursor-not-allowed
+              `}
             >
-              Iniciar Sesión
+              {loading ? "Ingresando..." : "Iniciar Sesión"}
             </button>
           </form>
 
-          {/* Footer */}
           <p className="text-center text-xs text-gray-500 mt-6">
-            © {new Date().getFullYear()} Comunidad Organizada
+            Nunca compartas tu contraseña. © {new Date().getFullYear()} Comunidad Organizada
           </p>
         </div>
       </div>

@@ -3,7 +3,7 @@ import {
   Controller,
   Get,
   Post,
-  Put,
+  Patch,
   Delete,
   Param,
   Body,
@@ -65,7 +65,7 @@ export class ParkingsController {
     }
   }
 
-  @Put(':id')
+  @Patch(':id')
   async update(@Param('id') id: string, @Body() body: any) {
     try {
       return await this.parkingsService.update(id, body);
