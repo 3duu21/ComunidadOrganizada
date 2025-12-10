@@ -20,6 +20,7 @@ import ProtectedRoute from "./ProtectedRoute";
 // 🔹 NUEVAS páginas para propietarios
 import MiPanel from "../pages/owner/MiPanel";
 import MisPagos from "../pages/owner/MisPagos";
+import LandingPage from "../pages/landing";
 // Puedes crear luego MisGastosComunes si quieres algo más detallado
 
 export default function AppRoutes() {
@@ -28,6 +29,7 @@ export default function AppRoutes() {
       <Routes>
         {/* Ruta pública (sin token) */}
         <Route path="/login" element={<Login />} />
+        <Route path="/index" element={<LandingPage />} />
 
         {/* RUTAS ADMIN */}
         <Route

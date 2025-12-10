@@ -406,6 +406,140 @@ export default function GastosComunes() {
         );
     };
 
+    const generateDebtorsPDF = () => {
+        if (!summary) return;
+
+        // 🔹 Solo deudores (no_pagado o parcial)
+        const debtors = summary.items.filter(
+            (item: any) => item.status === "no_pagado" || item.status === "parcial"
+        );
+
+        if (debtors.length === 0) {
+            alert("No hay deudores en este periodo. Todos están pagados ✅");
+            return;
+        }
+
+        const doc = new jsPDF("p", "mm", "a4");
+
+        const formatCurrencyPDF = (value: number) =>
+            `$${(value || 0).toLocaleString("es-CL")}`;
+
+        const months = [
+            "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+        ];
+
+        const periodLabel = `${months[(summary.period.month || 1) - 1]} ${summary.period.year
+            }`;
+        const todayLabel = new Date().toLocaleDateString("es-CL");
+
+        // 👇 Tomamos nombres dinámicos
+        const condoName =
+            filters.condominiumName && filters.condominiumName !== "—"
+                ? filters.condominiumName
+                : "Condominio Organizado";
+
+        const buildingName =
+            filters.buildingName && filters.buildingName !== "—"
+                ? filters.buildingName
+                : null;
+
+        // ===== HEADER =====
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("LISTADO DE DEUDORES GASTOS COMUNES", 105, 18, { align: "center" });
+
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+
+        // Caja info condominio / edificio / periodo
+        doc.setDrawColor(0);
+        doc.setLineWidth(0.2);
+        doc.rect(12, 24, 120, 22);
+
+        let y = 29;
+        doc.text(condoName, 14, y);
+        y += 5;
+
+        if (buildingName) {
+            doc.text(`Edificio: ${buildingName}`, 14, y);
+            y += 5;
+        }
+
+        doc.text(`Periodo: ${periodLabel}`, 14, y);
+
+        // Info derecha
+        doc.text(`Fecha emisión: ${todayLabel}`, 198, 29, { align: "right" });
+        doc.text(
+            `Estado periodo: ${summary.period.status.toUpperCase()}`,
+            198,
+            34,
+            { align: "right" }
+        );
+        doc.text(
+            `Monto GC por depto: ${formatCurrencyPDF(
+                summary.period.common_fee_amount || 0
+            )}`,
+            198,
+            39,
+            { align: "right" }
+        );
+
+        // Línea separadora
+        doc.line(12, 50, 198, 50);
+
+        // ===== TABLA DE DEUDORES =====
+        const body = debtors.map((d: any) => [
+            d.department_number || "—",
+            d.status === "no_pagado"
+                ? "No pagado"
+                : d.status === "parcial"
+                    ? "Parcial"
+                    : d.status,
+            formatCurrencyPDF(d.charge_amount || 0),
+            formatCurrencyPDF(d.paid_amount || 0),
+            formatCurrencyPDF((d.charge_amount || 0) - (d.paid_amount || 0)),
+        ]);
+
+        autoTable(doc, {
+            startY: 54,
+            head: [["Depto", "Estado", "Cobrado", "Pagado", "Saldo"]],
+            body,
+            styles: {
+                fontSize: 8,
+            },
+            headStyles: {
+                fillColor: [250, 250, 250],
+                textColor: 40,
+                lineWidth: 0.1,
+            },
+            bodyStyles: {
+                lineWidth: 0.08,
+            },
+            columnStyles: {
+                0: { cellWidth: 25 },
+                1: { cellWidth: 25 },
+                2: { halign: "right" },
+                3: { halign: "right" },
+                4: { halign: "right" },
+            },
+            margin: { left: 12, right: 12 },
+            theme: "grid",
+        });
+
+        // Nombre de archivo con datos dinámicos
+        const safeCondo = condoName.replace(/\s+/g, "_").toLowerCase();
+        const safeBuilding = buildingName
+            ? "_" + buildingName.replace(/\s+/g, "_").toLowerCase()
+            : "";
+        const safePeriod = `${summary.period.year}_${String(
+            summary.period.month
+        ).padStart(2, "0")}`;
+
+        doc.save(`deudores_${safeCondo}${safeBuilding}_${safePeriod}.pdf`);
+    };
+
+
 
 
     // ===== descargar CSV =====
@@ -481,6 +615,14 @@ export default function GastosComunes() {
                                 🔓 Reabrir periodo
                             </button>
                         )}
+
+                        <button
+                            className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+                            onClick={generateDebtorsPDF}
+                            disabled={!summary}
+                        >
+                            🧾 PDF Deudores
+                        </button>
 
                         <button
                             onClick={handleRefreshSummary}
