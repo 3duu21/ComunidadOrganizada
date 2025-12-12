@@ -47,6 +47,189 @@ const monthNames = [
 const formatCurrency = (value: number) =>
   `$${(value || 0).toLocaleString("es-CL")}`;
 
+// ===== Modal para crear acceso de propietario =====
+interface CreateOwnerAccessModalProps {
+  department: any;
+  onClose: () => void;
+}
+
+function CreateOwnerAccessModal({
+  department,
+  onClose,
+}: CreateOwnerAccessModalProps) {
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [successInfo, setSuccessInfo] = useState<{
+    email: string;
+    generatedPassword: string | null;
+    userCreated: boolean;
+  } | null>(null);
+
+  const ownerEmail = department?.owner_email || "";
+  const ownerName = department?.owner_name || "";
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loading) return;
+    setApiError(null);
+    setSuccessInfo(null);
+
+    if (!ownerEmail) {
+      setApiError(
+        "Este departamento no tiene un correo de propietario. Agrega un correo antes de crear el acceso."
+      );
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await api.post(
+        `/departments/${department.id}/create-owner-access`,
+        {
+          password: password.trim() || undefined,
+        }
+      );
+
+      const data = res.data || {};
+      setSuccessInfo({
+        email: data.email,
+        generatedPassword: data.generatedPassword || null,
+        userCreated: !!data.userCreated,
+      });
+    } catch (err: any) {
+      console.error("Error creando acceso de propietario:", err);
+      const backendMessage =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message;
+
+      if (backendMessage) {
+        setApiError(
+          typeof backendMessage === "string"
+            ? backendMessage
+            : "No se pudo crear el acceso de propietario. Revisa tu plan o intenta nuevamente."
+        );
+      } else {
+        setApiError(
+          "No se pudo crear el acceso de propietario. Revisa tu plan o intenta nuevamente."
+        );
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+        <h3 className="text-xl font-semibold mb-3">
+          Crear acceso de propietario
+        </h3>
+
+        {/* Error API */}
+        {apiError && (
+          <div className="mb-3 text-sm text-red-800 bg-red-50 border border-red-200 rounded px-3 py-2">
+            <p className="font-semibold">
+              No se pudo crear el acceso de propietario
+            </p>
+            <p className="mt-1">{apiError}</p>
+            <p className="mt-1 text-xs text-red-700">
+              Si tu plan no incluye portal de propietarios o alcanzaste el
+              límite, puedes mejorarlo desde el panel principal.
+            </p>
+          </div>
+        )}
+
+        {/* Mensaje éxito */}
+        {successInfo && (
+          <div className="mb-3 text-sm text-green-800 bg-green-50 border border-green-200 rounded px-3 py-2">
+            <p className="font-semibold">Acceso creado correctamente</p>
+            <p className="mt-1">
+              Correo del propietario:{" "}
+              <span className="font-mono">{successInfo.email}</span>
+            </p>
+            {successInfo.userCreated && successInfo.generatedPassword && (
+              <p className="mt-1">
+                Usuario nuevo creado con contraseña temporal:{" "}
+                <span className="font-mono font-semibold">
+                  {successInfo.generatedPassword}
+                </span>
+                .
+              </p>
+            )}
+            {!successInfo.userCreated && (
+              <p className="mt-1">
+                El propietario ya tenía una cuenta. Solo se vinculó al
+                condominio y al departamento.
+              </p>
+            )}
+            <p className="mt-1 text-xs text-green-700">
+              Comparte estas credenciales con el propietario para que pueda
+              acceder al portal.
+            </p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+            <p>
+              <span className="font-semibold">Departamento:</span>{" "}
+              {department?.number}
+            </p>
+            <p>
+              <span className="font-semibold">Propietario:</span>{" "}
+              {ownerName || "—"}
+            </p>
+            <p>
+              <span className="font-semibold">Correo:</span>{" "}
+              {ownerEmail || "—"}
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Contraseña para el propietario
+            </label>
+            <input
+              type="text"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full border rounded px-3 py-2 text-sm border-gray-300"
+              placeholder="Deja en blanco para generar una contraseña temporal"
+              disabled={loading}
+              maxLength={60}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Mínimo recomendado: 6 caracteres. Si lo dejas vacío, el sistema
+              generará una contraseña temporal.
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-2 mt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm"
+              disabled={loading}
+            >
+              Cerrar
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 text-sm"
+              disabled={loading}
+            >
+              {loading ? "Creando acceso..." : "Crear acceso"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ===== Componente principal =====
 export default function Departamentos() {
   const [condominiums, setCondominiums] = useState<Condominium[]>([]);
   const [selectedCondoId, setSelectedCondoId] = useState<string>("");
@@ -67,6 +250,13 @@ export default function Departamentos() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [history, setHistory] = useState<DepartmentHistoryRow[]>([]);
   const [historyDepartment, setHistoryDepartment] = useState<any>(null);
+
+  // ===== Acceso propietario =====
+  const [openOwnerAccessModal, setOpenOwnerAccessModal] = useState(false);
+  const [ownerAccessDepartment, setOwnerAccessDepartment] = useState<any>(null);
+  const [allowOwnerPortal, setAllowOwnerPortal] = useState<boolean | null>(
+    null
+  );
 
   const filters = {
     condominiumName:
@@ -124,10 +314,27 @@ export default function Departamentos() {
     }
   };
 
+  // Cargar info de plan (para saber si se permite portal propietarios)
+  const loadPlanInfo = async () => {
+    try {
+      const res = await api.get("/me");
+      const data = res.data;
+      if (data?.plan?.allow_owner_portal === true) {
+        setAllowOwnerPortal(true);
+      } else {
+        setAllowOwnerPortal(false);
+      }
+    } catch (err) {
+      console.error("Error obteniendo plan desde /me:", err);
+      setAllowOwnerPortal(null);
+    }
+  };
+
   useEffect(() => {
     loadCondominiums();
     loadBuildings();
     loadDepartments();
+    loadPlanInfo();
   }, []);
 
   const handleCondoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -176,15 +383,12 @@ export default function Departamentos() {
     setHistoryLoading(true);
 
     try {
-      const res = await api.get(
-        "/billing-periods/history/by-department",
-        {
-          params: {
-            building_id: selectedBuildingId,
-            department_id: dept.id,
-          },
-        }
-      );
+      const res = await api.get("/billing-periods/history/by-department", {
+        params: {
+          building_id: selectedBuildingId,
+          department_id: dept.id,
+        },
+      });
 
       setHistory(res.data || []);
     } catch (e) {
@@ -192,6 +396,18 @@ export default function Departamentos() {
     } finally {
       setHistoryLoading(false);
     }
+  };
+
+  // ===== Abrir modal acceso propietario =====
+  const handleOpenOwnerAccess = (dept: any) => {
+    if (!dept.owner_email) {
+      alert(
+        "Este departamento no tiene un correo de propietario registrado. Edítalo y agrega un correo antes de crear el acceso."
+      );
+      return;
+    }
+    setOwnerAccessDepartment(dept);
+    setOpenOwnerAccessModal(true);
   };
 
   // ===== PDF del historial =====
@@ -208,12 +424,9 @@ export default function Departamentos() {
     // Título
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text(
-      "HISTORIAL DE GASTO COMÚN POR DEPARTAMENTO",
-      105,
-      18,
-      { align: "center" }
-    );
+    doc.text("HISTORIAL DE GASTO COMÚN POR DEPARTAMENTO", 105, 18, {
+      align: "center",
+    });
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
@@ -228,11 +441,7 @@ export default function Departamentos() {
     if (filters.buildingName !== "—") {
       doc.text(`Edificio: ${filters.buildingName}`, 14, 39);
     }
-    doc.text(
-      `Depto: ${historyDepartment.number || "—"}`,
-      14,
-      44
-    );
+    doc.text(`Depto: ${historyDepartment.number || "—"}`, 14, 44);
 
     // Info derecha
     doc.text(`Fecha emisión: ${todayLabel}`, 198, 29, {
@@ -247,15 +456,11 @@ export default function Departamentos() {
       (s, h) => s + (h.charge_amount || 0),
       0
     );
-    const totalPaid = history.reduce(
-      (s, h) => s + (h.paid_amount || 0),
-      0
-    );
+    const totalPaid = history.reduce((s, h) => s + (h.paid_amount || 0), 0);
 
     // Tabla
     const body = history.map((h) => {
-      const saldo =
-        (h.charge_amount || 0) - (h.paid_amount || 0);
+      const saldo = (h.charge_amount || 0) - (h.paid_amount || 0);
 
       const statusLabel =
         h.status === "pagado"
@@ -275,9 +480,7 @@ export default function Departamentos() {
 
     autoTable(doc, {
       startY: 52,
-      head: [
-        ["Periodo", "Cobrado", "Pagado", "Saldo", "Estado"],
-      ],
+      head: [["Periodo", "Cobrado", "Pagado", "Saldo", "Estado"]],
       body,
       styles: {
         fontSize: 8,
@@ -328,8 +531,7 @@ export default function Departamentos() {
         ? ""
         : "_" + filters.buildingName.replace(/\s+/g, "_");
     const safeDept =
-      historyDepartment.number?.toString().replace(/\s+/g, "_") ||
-      "depto";
+      historyDepartment.number?.toString().replace(/\s+/g, "_") || "depto";
 
     doc.save(
       `historial_gc_${safeCondo}${safeBuilding}_depto_${safeDept}.pdf`
@@ -346,9 +548,7 @@ export default function Departamentos() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-3xl font-bold text-gray-800">
-              Departamentos
-            </h2>
+            <h2 className="text-3xl font-bold text-gray-800">Departamentos</h2>
             <p className="text-sm text-gray-500 mt-1">
               Gestiona los departamentos por condominio y edificio.
             </p>
@@ -498,10 +698,18 @@ export default function Departamentos() {
                       </button>
                       <button
                         onClick={() => handleOpenHistory(dep)}
-                        className="text-indigo-600 hover:text-indigo-800"
+                        className="text-indigo-600 hover:text-indigo-800 mr-3"
                       >
                         📊 Historial GC
                       </button>
+                      {allowOwnerPortal && (
+                        <button
+                          onClick={() => handleOpenOwnerAccess(dep)}
+                          className="text-emerald-600 hover:text-emerald-800"
+                        >
+                          🔑 Acceso propietario
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -655,6 +863,17 @@ export default function Departamentos() {
             onClose={() => {
               setOpenDeleteModal(false);
               loadDepartments(selectedBuildingId || undefined);
+            }}
+          />
+        )}
+
+        {/* Modal Acceso propietario */}
+        {openOwnerAccessModal && ownerAccessDepartment && (
+          <CreateOwnerAccessModal
+            department={ownerAccessDepartment}
+            onClose={() => {
+              setOpenOwnerAccessModal(false);
+              setOwnerAccessDepartment(null);
             }}
           />
         )}

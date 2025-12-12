@@ -23,6 +23,7 @@ export default function CreateDepartmentModal({ buildingId, onClose }: Props) {
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<DepartmentErrors>({});
+  const [apiError, setApiError] = useState<string | null>(null); // 👈 error desde backend
 
   const validate = () => {
     const newErrors: DepartmentErrors = {};
@@ -73,6 +74,8 @@ export default function CreateDepartmentModal({ buildingId, onClose }: Props) {
 
   const handleSubmit = async () => {
     if (loading) return;
+    setApiError(null); // limpiar mensaje previo
+
     if (!validate()) return;
 
     setLoading(true);
@@ -85,9 +88,25 @@ export default function CreateDepartmentModal({ buildingId, onClose }: Props) {
         owner_email: ownerEmail.trim() || undefined,
       });
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error creando departamento:", err);
-      alert("Error creando departamento, intenta nuevamente.");
+
+      const backendMessage =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message;
+
+      if (backendMessage) {
+        setApiError(
+          typeof backendMessage === "string"
+            ? backendMessage
+            : "Error creando departamento, revisa tu plan o intenta nuevamente."
+        );
+      } else {
+        setApiError(
+          "Error creando departamento, revisa tu plan o intenta nuevamente."
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -97,6 +116,18 @@ export default function CreateDepartmentModal({ buildingId, onClose }: Props) {
     <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
       <div className="bg-white rounded-lg p-6 w-96 shadow-lg">
         <h3 className="text-xl font-bold mb-4">Crear Departamento</h3>
+
+        {/* Error de API / límite de plan */}
+        {apiError && (
+          <div className="mb-3 text-sm text-red-800 bg-red-50 border border-red-200 rounded px-3 py-2">
+            <p className="font-semibold">No se pudo crear el departamento</p>
+            <p className="mt-1">{apiError}</p>
+            <p className="mt-1 text-xs text-red-700">
+              Si alcanzaste el límite de departamentos permitidos por tu plan,
+              contáctanos para mejorar tu plan y poder administrar más unidades.
+            </p>
+          </div>
+        )}
 
         {errors.building && (
           <p className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">

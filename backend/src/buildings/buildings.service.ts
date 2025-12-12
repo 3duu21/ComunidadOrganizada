@@ -3,6 +3,7 @@ import {
   Inject,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { AccessControlService } from '../access-control/access-control.service';
@@ -19,12 +20,53 @@ export class BuildingsService {
     data: { name: string; address?: string; condominium_id: string },
     userId: number,
   ) {
-    // Validar que el usuario tenga acceso al condominio donde está creando el edificio
+    // 1) Validar que el usuario tenga acceso al condominio donde está creando el edificio
     await this.accessControl.ensureUserHasAccessToCondominium(
       userId,
       data.condominium_id,
     );
 
+    // 2) Obtener usuario con su plan
+    const { data: user, error: userError } = await this.supabase
+      .from('users')
+      .select('id, plan_id')
+      .eq('id', userId)
+      .single();
+
+    if (userError) throw userError;
+    if (!user) {
+      throw new ForbiddenException('Usuario no encontrado');
+    }
+
+    const planId = user.plan_id || 'trial';
+
+    const { data: plan, error: planError } = await this.supabase
+      .from('plans')
+      .select('id, max_buildings_per_condo')
+      .eq('id', planId)
+      .maybeSingle();
+
+    if (planError) throw planError;
+
+    // 3) Validar límite de edificios por condominio según el plan
+    if (plan?.max_buildings_per_condo != null) {
+      const { count, error: countError } = await this.supabase
+        .from('buildings')
+        .select('*', { count: 'exact', head: true })
+        .eq('condominium_id', data.condominium_id);
+
+      if (countError) throw countError;
+
+      const currentCount = count ?? 0;
+
+      if (currentCount >= plan.max_buildings_per_condo) {
+        throw new BadRequestException(
+          'Has alcanzado el número máximo de edificios permitidos para este condominio según tu plan. Actualiza tu plan para agregar más edificios.',
+        );
+      }
+    }
+
+    // 4) Crear edificio
     const { data: result, error } = await this.supabase
       .from('buildings')
       .insert(data)

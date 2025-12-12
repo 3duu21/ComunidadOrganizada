@@ -3,6 +3,7 @@ import {
   Inject,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
 
@@ -71,11 +72,52 @@ export class CondominiumsService {
     return data as Condominium;
   }
 
-  // Crear un condominio (y asociarlo al usuario como admin)
+  // Crear un condominio (validando plan) y asociarlo al usuario como admin
   async create(
     data: { name: string },
     userId: number,
   ): Promise<Condominium> {
+    // 0) Obtener usuario con su plan
+    const { data: user, error: userError } = await this.supabase
+      .from('users')
+      .select('id, plan_id')
+      .eq('id', userId)
+      .single();
+
+    if (userError) throw userError;
+    if (!user) {
+      throw new ForbiddenException('Usuario no encontrado');
+    }
+
+    const planId = user.plan_id || 'trial';
+
+    const { data: plan, error: planError } = await this.supabase
+      .from('plans')
+      .select('id, max_condominiums')
+      .eq('id', planId)
+      .maybeSingle();
+
+    if (planError) throw planError;
+
+    // 1) Validar límite de condominios del plan
+    if (plan?.max_condominiums != null) {
+      const { count, error: countError } = await this.supabase
+        .from('user_condominiums')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+
+      if (countError) throw countError;
+
+      const currentCount = count ?? 0;
+
+      if (currentCount >= plan.max_condominiums) {
+        throw new BadRequestException(
+          'Has alcanzado el número máximo de condominios permitidos por tu plan. Actualiza tu plan para agregar más.',
+        );
+      }
+    }
+
+    // 2) Crear condominio
     const { data: result, error } = await this.supabase
       .from('condominiums')
       .insert(data)
@@ -84,7 +126,7 @@ export class CondominiumsService {
 
     if (error) throw error;
 
-    // asociar al usuario en la pivote
+    // 3) Asociar al usuario en la pivote
     const { error: linkError } = await this.supabase
       .from('user_condominiums')
       .insert({

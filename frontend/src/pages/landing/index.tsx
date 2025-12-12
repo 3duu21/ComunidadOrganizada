@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 
 export default function LandingPage() {
   return (
@@ -37,7 +38,9 @@ export default function LandingPage() {
 
           <div className="flex items-center gap-3">
             <button className="hidden rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-emerald-500 hover:text-emerald-400 md:inline">
-              Iniciar sesión
+              <Link to="/login">Iniciar sesión</Link>
+              
+              
             </button>
             <button className="rounded-xl bg-emerald-500 px-4 py-1.5 text-xs font-semibold text-slate-900 shadow-lg shadow-emerald-500/30 hover:bg-emerald-400">
               Probar demo

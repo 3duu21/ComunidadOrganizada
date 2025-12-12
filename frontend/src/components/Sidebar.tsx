@@ -2,6 +2,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getCurrentUser, logout as authLogout } from "../services/auth";
+import api from "../services/api"; // 👈 usamos tu cliente API
 
 // 🔹 Links admin sueltos
 const adminSingleLinks = [{ name: "Dashboard", path: "/", icon: "🏠" }];
@@ -49,6 +50,7 @@ export default function Sidebar() {
 
   const [userName, setUserName] = useState("Usuario");
   const [userRole, setUserRole] = useState<"admin" | "owner">("admin");
+  const [planName, setPlanName] = useState<string | null>(null); // 👈 nombre del plan
   const [open, setOpen] = useState(false);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
@@ -58,6 +60,24 @@ export default function Sidebar() {
       setUserName(user.name || "Usuario");
       setUserRole(user.role);
     }
+
+    // Traer info extendida del usuario (incluye plan) desde /me
+    const fetchMe = async () => {
+      try {
+        const response = await api.get("/me");
+        const data = response.data;
+        if (data?.plan?.name) {
+          setPlanName(data.plan.name);
+        } else if (data?.plan?.id) {
+          // fallback por si solo viene id
+          setPlanName(String(data.plan.id));
+        }
+      } catch (err) {
+        console.error("Error al obtener /me para mostrar plan:", err);
+      }
+    };
+
+    fetchMe();
 
     const handler = () => setOpen((prev) => !prev);
     document.addEventListener("toggle-sidebar", handler);
@@ -137,6 +157,14 @@ export default function Sidebar() {
             <div>
               <h1 className="text-sm font-semibold text-white">{userName}</h1>
               <p className="text-[11px] text-gray-400">{roleLabel}</p>
+
+              {/* Línea del plan actual */}
+              {planName && (
+                <p className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-blue-900/40 border border-blue-500/40 px-2 py-[2px] text-[10px] text-blue-300">
+                  <span className="text-[9px]">★</span>
+                  <span>Plan: {planName}</span>
+                </p>
+              )}
             </div>
           </div>
 

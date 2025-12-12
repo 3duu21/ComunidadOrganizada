@@ -10,13 +10,27 @@ export class MeService {
     // 1) Datos del usuario
     const { data: user, error: userError } = await this.supabase
       .from('users')
-      .select('id, name, email, phone, role, created_at, avatar_url')
+      .select('id, name, email, phone, role, created_at, avatar_url, plan_id')
       .eq('id', userId)
       .single();
 
     if (userError) throw userError;
+    if (!user) throw new Error('Usuario no encontrado');
 
-    // 2) Roles por condominio
+    // 2) Plan del usuario (si tiene, si no usamos trial por defecto)
+    const planId = user.plan_id || 'trial';
+
+    const { data: plan, error: planError } = await this.supabase
+      .from('plans')
+      .select(
+        'id, name, price_monthly, max_condominiums, max_buildings_per_condo, max_departments_per_condo, allow_owner_portal',
+      )
+      .eq('id', planId)
+      .maybeSingle();
+
+    if (planError) throw planError;
+
+    // 3) Roles por condominio
     const { data: roles, error: rolesError } = await this.supabase
       .from('user_condominiums')
       .select('role, condominium:condominiums(id, name)')
@@ -24,7 +38,7 @@ export class MeService {
 
     if (rolesError) throw rolesError;
 
-    // 3) Settings
+    // 4) Settings
     const { data: settings, error: settingsError } = await this.supabase
       .from('user_settings')
       .select('default_condominium_id, theme, notify_email, notify_morosidad')
@@ -35,6 +49,7 @@ export class MeService {
 
     return {
       user,
+      plan: plan || null,
       roles: (roles || []).map((r: any) => ({
         role: r.role,
         condominium_id: r.condominium.id,

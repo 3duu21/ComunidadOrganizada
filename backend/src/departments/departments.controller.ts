@@ -72,4 +72,17 @@ export class DepartmentsController {
     const userId = req.user.userId;
     return this.departmentsService.remove(id, userId);
   }
+
+  // src/departments/departments.controller.ts
+
+  @Post(':id/create-owner-access')
+  async createOwnerAccess(
+    @Param('id') id: string,
+    @Req() req: any,
+    @Body() body: { password?: string },
+  ) {
+    const userId = req.user.userId; // admin logeado
+    return this.departmentsService.createOwnerAccess(id, userId, body.password);
+  }
+
 }

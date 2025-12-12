@@ -18,6 +18,7 @@ export default function CreateBuildingModal({
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<BuildingErrors>({});
+  const [apiError, setApiError] = useState<string | null>(null); // 👈 error desde backend
 
   const validate = () => {
     const newErrors: BuildingErrors = {};
@@ -44,24 +45,54 @@ export default function CreateBuildingModal({
 
   const submit = async () => {
     if (loading) return;
+    setApiError(null); // limpiar mensaje previo
+
     if (!validate()) return;
 
     try {
       setLoading(true);
       await createBuilding({ name: name.trim(), condominium_id: condominiumId });
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error creando edificio:", err);
-      alert("No se pudo crear el edificio. Intenta nuevamente.");
+
+      const backendMessage =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message;
+
+      if (backendMessage) {
+        setApiError(
+          typeof backendMessage === "string"
+            ? backendMessage
+            : "No se pudo crear el edificio. Revisa tu plan o intenta nuevamente."
+        );
+      } else {
+        setApiError(
+          "No se pudo crear el edificio. Revisa tu plan o intenta nuevamente."
+        );
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white p-5 rounded w-96 shadow-lg">
         <h2 className="text-xl font-bold mb-3">Crear Edificio</h2>
+
+        {/* Error de API / límite de plan */}
+        {apiError && (
+          <div className="mb-3 text-sm text-red-800 bg-red-50 border border-red-200 rounded px-3 py-2">
+            <p className="font-semibold">No se pudo crear el edificio</p>
+            <p className="mt-1">{apiError}</p>
+            <p className="mt-1 text-xs text-red-700">
+              Si alcanzaste el límite de tu plan para edificios, contáctanos
+              para mejorar tu plan y poder administrar más propiedades.
+            </p>
+          </div>
+        )}
 
         {errors.condominium && (
           <p className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
