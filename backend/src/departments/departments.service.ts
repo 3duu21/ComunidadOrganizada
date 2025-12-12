@@ -125,7 +125,7 @@ export class DepartmentsService {
 
     const { data, error } = await this.supabase
       .from('departments')
-      .select('*')
+      .select('*, department_users(id)')
       .eq('building_id', buildingId);
 
     if (error) throw error;
@@ -276,14 +276,27 @@ export class DepartmentsService {
 
     if (existingUser) {
       ownerUserId = existingUser.id;
-      // opcional: si tenía otro rol, podrías setearle 'owner'
-      // (pero eso depende de tu lógica global)
+
+      // 🔁 Si viene una contraseña nueva, actualizamos la clave del propietario
+      if (plainPassword && plainPassword.trim().length >= 6) {
+        const passwordToUse = plainPassword.trim();
+        const passwordHash = await bcrypt.hash(passwordToUse, 10);
+
+        const { error: updateUserError } = await this.supabase
+          .from('users')
+          .update({ password_hash: passwordHash })
+          .eq('id', ownerUserId);
+
+        if (updateUserError) throw updateUserError;
+
+        generatedPassword = passwordToUse; // para devolverla al front
+      }
     } else {
       // 6) Crear usuario nuevo con rol owner
       const passwordToUse =
         plainPassword && plainPassword.trim().length >= 6
           ? plainPassword.trim()
-          : Math.random().toString(36).slice(2, 10); // temp password simple
+          : Math.random().toString(36).slice(2, 10); // password temporal
 
       const passwordHash = await bcrypt.hash(passwordToUse, 10);
 

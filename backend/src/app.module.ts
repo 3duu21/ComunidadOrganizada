@@ -17,6 +17,7 @@ import { AccessControlModule } from './access-control/access-control.module';
 import { MeModule } from './me/me.module';
 import { BillingPeriodsModule } from './billing-periods/billing-periods.module';
 import { OwnerModule } from './owner/owner.module';
+import { EmailModule } from './email/email.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { OwnerModule } from './owner/owner.module';
     MeModule,
     BillingPeriodsModule,
     OwnerModule, 
+    EmailModule
     
     
   ],
