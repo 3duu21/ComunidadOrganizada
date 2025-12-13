@@ -466,8 +466,8 @@ export default function Departamentos() {
         h.status === "pagado"
           ? "Pagado"
           : h.status === "parcial"
-          ? "Parcial"
-          : "No pagado";
+            ? "Parcial"
+            : "No pagado";
 
       return [
         `${monthNames[h.month]} ${h.year}`,
@@ -684,6 +684,16 @@ export default function Departamentos() {
                       {dep.owner_email}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {/* Estado de acceso */}
+                      {Array.isArray(dep.department_users) && dep.department_users.length > 0 ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold mr-3">
+                          ✅ Acceso activo
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 text-[11px] font-semibold mr-3">
+                          ⛔ Sin acceso
+                        </span>
+                      )}
                       <button
                         onClick={() => handleEdit(dep)}
                         className="text-blue-600 hover:text-blue-800 mr-3"
@@ -794,15 +804,15 @@ export default function Departamentos() {
                           h.status === "pagado"
                             ? "Pagado"
                             : h.status === "parcial"
-                            ? "Parcial"
-                            : "No pagado";
+                              ? "Parcial"
+                              : "No pagado";
 
                         const statusColor =
                           h.status === "pagado"
                             ? "bg-green-100 text-green-700"
                             : h.status === "parcial"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : "bg-red-100 text-red-700";
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-red-100 text-red-700";
 
                         return (
                           <tr key={h.period_id}>

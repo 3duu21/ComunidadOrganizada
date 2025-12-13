@@ -21,6 +21,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import MiPanel from "../pages/owner/MiPanel";
 import MisPagos from "../pages/owner/MisPagos";
 import LandingPage from "../pages/landing";
+import PlanVencido from "../pages/PlanVencido";
 // Puedes crear luego MisGastosComunes si quieres algo más detallado
 
 export default function AppRoutes() {
@@ -30,6 +31,8 @@ export default function AppRoutes() {
         {/* Ruta pública (sin token) */}
         <Route path="/login" element={<Login />} />
         <Route path="/index" element={<LandingPage />} />
+        <Route path="/plan-vencido" element={<PlanVencido />} />
+
 
         {/* RUTAS ADMIN */}
         <Route

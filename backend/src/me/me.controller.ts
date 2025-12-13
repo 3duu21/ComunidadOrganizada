@@ -10,7 +10,7 @@ export class MeController {
 
   @Get()
   async getMe(@Req() req: any) {
-    const userId: number = req.user.userId; // mismo que usas en gastos, condominios, etc.
+    const userId: number = req.user.userId;
     return this.meService.getMeWithRoles(userId);
   }
 

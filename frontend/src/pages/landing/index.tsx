@@ -1,48 +1,206 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { signupTrial } from "../../services/auth";
+import api from "../../services/api";
+import logo from "../../images/logo.png";
+
+type SelectedPlan = "Trial" | "Básico" | "Avanzado" | null;
 
 export default function LandingPage() {
+  const navigate = useNavigate();
+
+  // 🔹 Estado modal TRIAL
+  const [openTrialModal, setOpenTrialModal] = useState(false);
+  const [trialName, setTrialName] = useState("");
+  const [trialEmail, setTrialEmail] = useState("");
+  const [trialPassword, setTrialPassword] = useState("");
+  const [trialLoading, setTrialLoading] = useState(false);
+  const [trialError, setTrialError] = useState<string | null>(null);
+
+  // 🔹 Estado FORMULARIO DE CONTACTO
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactRole, setContactRole] = useState("");
+  const [contactUnits, setContactUnits] = useState("");
+  const [contactMessage, setContactMessage] = useState("");
+  const [contactSending, setContactSending] = useState(false);
+  const [contactError, setContactError] = useState<string | null>(null);
+
+  // 🔹 Plan seleccionado desde “Planes”
+  const [selectedPlan, setSelectedPlan] = useState<SelectedPlan>(null);
+
+  const selectedPlanMeta = useMemo(() => {
+    if (!selectedPlan) return null;
+
+    if (selectedPlan === "Trial") {
+      return {
+        title: "Plan Trial (14 días)",
+        helper:
+          "Ideal para conocer el sistema. Te dejamos listo un acceso administrador para partir.",
+      };
+    }
+    if (selectedPlan === "Básico") {
+      return {
+        title: "Plan Básico (mensual)",
+        helper:
+          "Perfecto si administras 1 condominio/edificio y quieres ordenar gastos comunes y PDF sin Excel.",
+      };
+    }
+    return {
+      title: "Plan Avanzado (mensual)",
+      helper:
+        "Pensado para administradores que quieren profesionalizar su servicio con portal de propietarios y menos reclamos.",
+    };
+  }, [selectedPlan]);
+
+  const handleOpenTrial = () => {
+    setTrialError(null);
+    setTrialName("");
+    setTrialEmail("");
+    setTrialPassword("");
+    setOpenTrialModal(true);
+  };
+
+  // 🔹 Click en “Quiero este plan” (no rompe nada, solo rellena contacto)
+  const handleChoosePlan = (plan: Exclude<SelectedPlan, null>) => {
+    setSelectedPlan(plan);
+
+    // Autocompletamos sugerencias sin obligar nada
+    if (!contactRole.trim()) setContactRole("Administrador");
+    if (!contactMessage.trim()) {
+      const base =
+        plan === "Avanzado"
+          ? "Hola, me interesa el Plan Avanzado con portal de propietarios. ¿Podemos coordinar una demo y ver la implementación?"
+          : plan === "Básico"
+          ? "Hola, me interesa el Plan Básico. ¿Podemos coordinar una demo y ver si calza con mi comunidad?"
+          : "Hola, quiero probar el Trial. ¿Me puedes orientar para partir?";
+      setContactMessage(base);
+    }
+
+    // Bajamos a contacto (sin router, solo anchor)
+    window.location.hash = "#contact";
+  };
+
+  // 🔹 Envío formulario de CONTACTO
+  const handleContactSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (contactSending) return;
+
+    setContactError(null);
+
+    const nameTrimmed = contactName.trim();
+    const emailTrimmed = contactEmail.trim();
+
+    if (!nameTrimmed || !emailTrimmed) {
+      setContactError("Nombre y correo son obligatorios.");
+      return;
+    }
+
+    // Incluimos plan seleccionado (si existe) para que te llegue en el mail
+    const payload = {
+      name: nameTrimmed,
+      email: emailTrimmed,
+      role: contactRole.trim(),
+      units: contactUnits.trim(),
+      message: contactMessage.trim(),
+      plan: selectedPlan || undefined,
+    };
+
+    try {
+      setContactSending(true);
+      await api.post("/contact", payload);
+
+      alert("Mensaje enviado correctamente. Te contactaremos pronto.");
+
+      // limpiar formulario
+      setContactName("");
+      setContactEmail("");
+      setContactRole("");
+      setContactUnits("");
+      setContactMessage("");
+      setSelectedPlan(null);
+    } catch (err) {
+      console.error(err);
+      setContactError("Hubo un problema al enviar tu mensaje. Intenta nuevamente.");
+    } finally {
+      setContactSending(false);
+    }
+  };
+
+  // 🔹 Envío formulario TRIAL (crear cuenta de prueba)
+  const handleTrialSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (trialLoading) return;
+
+    setTrialError(null);
+
+    const nameTrimmed = trialName.trim();
+    const emailTrimmed = trialEmail.trim();
+    const passwordTrimmed = trialPassword.trim();
+
+    if (!nameTrimmed || !emailTrimmed || !passwordTrimmed) {
+      setTrialError("Todos los campos son obligatorios.");
+      return;
+    }
+
+    if (passwordTrimmed.length < 6) {
+      setTrialError("La contraseña debe tener al menos 6 caracteres.");
+      return;
+    }
+
+    try {
+      setTrialLoading(true);
+      await signupTrial({
+        name: nameTrimmed,
+        email: emailTrimmed,
+        password: passwordTrimmed,
+      });
+
+      setOpenTrialModal(false);
+      navigate("/"); // panel admin
+    } catch (err: any) {
+      console.error("Error creando trial:", err);
+      const msg =
+        err?.response?.data?.message ||
+        "No se pudo crear la cuenta de prueba. Intenta con otro correo.";
+      setTrialError(msg);
+    } finally {
+      setTrialLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
       {/* NAVBAR */}
       <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 text-sm font-bold text-slate-900">
-              CO
+            <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-emerald-500 text-sm font-bold text-slate-900">
+              <img src={logo} alt="Logo Comunidad Organizada" className="rounded-3xl"/>
             </div>
             <div>
-              <p className="text-sm font-semibold tracking-tight">
-                Comunidad Organizada
-              </p>
-              <p className="text-xs text-slate-400">
-                Gestión de condominios en un solo lugar
-              </p>
+              <p className="text-sm font-semibold tracking-tight">Comunidad Organizada</p>
+              <p className="text-xs text-slate-400">Gestión de condominios en un solo lugar</p>
             </div>
           </div>
 
           <nav className="hidden items-center gap-6 text-sm text-slate-300 md:flex">
-            <a href="#features" className="hover:text-emerald-400">
-              Funcionalidades
-            </a>
-            <a href="#how-it-works" className="hover:text-emerald-400">
-              Cómo funciona
-            </a>
-            <a href="#pricing" className="hover:text-emerald-400">
-              Planes
-            </a>
-            <a href="#contact" className="hover:text-emerald-400">
-              Contacto
-            </a>
+            <a href="#features" className="hover:text-emerald-400">Funcionalidades</a>
+            <a href="#how-it-works" className="hover:text-emerald-400">Cómo funciona</a>
+            <a href="#pricing" className="hover:text-emerald-400">Planes</a>
+            <a href="#contact" className="hover:text-emerald-400">Contacto</a>
           </nav>
 
           <div className="flex items-center gap-3">
             <button className="hidden rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-emerald-500 hover:text-emerald-400 md:inline">
               <Link to="/login">Iniciar sesión</Link>
-              
-              
             </button>
-            <button className="rounded-xl bg-emerald-500 px-4 py-1.5 text-xs font-semibold text-slate-900 shadow-lg shadow-emerald-500/30 hover:bg-emerald-400">
+
+            {/* BOTÓN PROBAR DEMO → abre modal */}
+            <button
+              onClick={handleOpenTrial}
+              className="rounded-xl bg-emerald-500 px-4 py-1.5 text-xs font-semibold text-slate-900 shadow-lg shadow-emerald-500/30 hover:bg-emerald-400"
+            >
               Probar demo
             </button>
           </div>
@@ -67,34 +225,43 @@ export default function LandingPage() {
                 </span>
               </h1>
 
+              {/* ✅ Copy pulido: beneficio directo */}
               <p className="max-w-xl text-sm leading-relaxed text-slate-300 sm:text-base">
-                Comunidad Organizada es un sistema web que conecta al
-                administrador con los propietarios: genera gastos comunes,
-                registra pagos, controla morosidad y entrega paneles claros para
-                cada actor, todo desde un solo lugar.
+                Deja atrás el Excel, ordena tus cobros y reduce reclamos con un sistema claro para ti
+                y para tus propietarios.
+              </p>
+
+              <p className="max-w-xl text-sm leading-relaxed text-slate-300 sm:text-base">
+                Comunidad Organizada es un sistema web que conecta al administrador con los propietarios:
+                genera gastos comunes, registra pagos, controla morosidad y entrega paneles claros para cada actor,
+                todo desde un solo lugar.
               </p>
 
               <div className="flex flex-wrap items-center gap-4">
-                <button className="rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/40 hover:bg-emerald-400">
+                <a
+                  href="#contact"
+                  className="rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/40 hover:bg-emerald-400"
+                >
                   Agendar demo gratuita
-                </button>
+                </a>
                 <button className="rounded-xl border border-slate-700 px-5 py-2.5 text-sm font-medium text-slate-200 hover:border-emerald-500 hover:text-emerald-400">
-                  Ver cómo funciona
+                  <a href="#comofunciona">Ver cómo funciona</a>
                 </button>
               </div>
 
               <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400">
                 <div className="flex items-center gap-2">
-                  <span className="h-5 w-5 rounded-full bg-emerald-500/20 text-center text-[10px] leading-5 text-emerald-300">
-                    ✓
-                  </span>
+                  <span className="h-5 w-5 rounded-full bg-emerald-500/20 text-center text-[10px] leading-5 text-emerald-300">✓</span>
                   Sin instalación, 100% web
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="h-5 w-5 rounded-full bg-emerald-500/20 text-center text-[10px] leading-5 text-emerald-300">
-                    ✓
-                  </span>
+                  <span className="h-5 w-5 rounded-full bg-emerald-500/20 text-center text-[10px] leading-5 text-emerald-300">✓</span>
                   Diseñado para la realidad chilena
+                </div>
+                {/* ✅ Copy pulido */}
+                <div className="flex items-center gap-2">
+                  <span className="h-5 w-5 rounded-full bg-emerald-500/20 text-center text-[10px] leading-5 text-emerald-300">✓</span>
+                  Menos llamadas, más control
                 </div>
               </div>
             </div>
@@ -115,44 +282,30 @@ export default function LandingPage() {
 
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-                    <p className="text-xs font-semibold text-slate-200">
-                      Resumen mensual
-                    </p>
+                    <p className="text-xs font-semibold text-slate-200">Resumen mensual</p>
                     <div className="space-y-2 text-xs text-slate-300">
                       <div className="flex justify-between">
                         <span>Gastos comunes generados</span>
-                        <span className="font-semibold text-emerald-400">
-                          $8.540.000
-                        </span>
+                        <span className="font-semibold text-emerald-400">$8.540.000</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Pagado</span>
-                        <span className="font-semibold text-emerald-400">
-                          76%
-                        </span>
+                        <span className="font-semibold text-emerald-400">76%</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Departamentos morosos</span>
-                        <span className="font-semibold text-rose-400">
-                          12
-                        </span>
+                        <span className="font-semibold text-rose-400">12</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-                    <p className="text-xs font-semibold text-slate-200">
-                      Panel propietario (vista ejemplo)
-                    </p>
+                    <p className="text-xs font-semibold text-slate-200">Panel propietario (vista ejemplo)</p>
                     <ul className="space-y-2 text-xs text-slate-300">
                       <li className="flex items-center justify-between">
                         <div>
-                          <p className="font-medium text-slate-100">
-                            Dpto. 304 · Torre A
-                          </p>
-                          <p className="text-[11px] text-slate-400">
-                            Estado: al día
-                          </p>
+                          <p className="font-medium text-slate-100">Dpto. 304 · Torre A</p>
+                          <p className="text-[11px] text-slate-400">Estado: al día</p>
                         </div>
                         <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] text-emerald-300">
                           Pagado
@@ -160,9 +313,7 @@ export default function LandingPage() {
                       </li>
                       <li className="flex items-center justify-between border-t border-slate-800 pt-2">
                         <div>
-                          <p className="text-[11px] text-slate-400">
-                            Último pago
-                          </p>
+                          <p className="text-[11px] text-slate-400">Último pago</p>
                           <p>05 / 12 / 2025</p>
                         </div>
                         <button className="rounded-lg border border-slate-700 px-2 py-1 text-[11px] hover:border-emerald-500 hover:text-emerald-300">
@@ -197,38 +348,36 @@ export default function LandingPage() {
                 Todo lo que necesitas para administrar tu comunidad
               </h2>
               <p className="mt-2 text-sm text-slate-300">
-                Comunidad Organizada nace desde la práctica: panel para
-                administradores, panel para propietarios y herramientas hechas
-                para el día a día de los condominios en Chile.
+                Hecho desde la práctica: menos tiempo “apagando incendios” y más control de tu operación.
               </p>
             </div>
 
             <div className="grid gap-6 md:grid-cols-3">
               <FeatureCard
                 title="Panel administrador"
-                description="Controla condominios, edificios, departamentos, gastos comunes y pagos desde un panel simple y ordenado."
+                description="Ordena tu operación: condominios, edificios, departamentos, gastos comunes y pagos, todo en un solo panel."
                 items={[
                   "Multi-condominio y multi-edificio",
-                  "Historial de gastos e ingresos",
-                  "Control de morosidad en tiempo real",
+                  "Historial claro de gastos e ingresos",
+                  "Morosidad visible al instante",
                 ]}
               />
               <FeatureCard
                 title="Panel propietarios"
-                description="Cada propietario puede ver su estado de cuenta, pagos realizados y descargar sus comprobantes."
+                description="Disminuye llamadas y correos: cada propietario revisa su estado, pagos y documentos cuando quiera."
                 items={[
                   "Acceso con usuario y contraseña",
-                  "Transparencia en gastos",
-                  "Menos llamadas y correos al administrador",
+                  "Transparencia para evitar conflictos",
+                  "Menos gestión repetitiva para ti",
                 ]}
               />
               <FeatureCard
                 title="Reportes y documentación"
-                description="Genera documentos claros para reuniones y directorios sin perder tiempo en Excel."
+                description="PDF automáticos y reportes listos para comité, reuniones o respaldo contable."
                 items={[
                   "Gastos comunes en PDF",
                   "Reportes por periodo",
-                  "Exportación para respaldo contable",
+                  "Exportación para respaldo",
                 ]}
               />
             </div>
@@ -236,18 +385,12 @@ export default function LandingPage() {
         </section>
 
         {/* HOW IT WORKS */}
-        <section
-          id="how-it-works"
-          className="border-b border-slate-800 bg-slate-950/90"
-        >
+        <section id="how-it-works" className="border-b border-slate-800 bg-slate-950/90">
           <div className="mx-auto max-w-6xl px-4 py-14">
-            <div className="mb-8 max-w-2xl">
-              <h2 className="text-2xl font-semibold tracking-tight text-slate-50">
-                Cómo funciona
-              </h2>
+            <div id="comofunciona" className="mb-8 max-w-2xl">
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-50">Cómo funciona</h2>
               <p className="mt-2 text-sm text-slate-300">
-                En pocos pasos puedes tener tu comunidad completamente cargada y
-                operando en la plataforma.
+                En pocos pasos puedes tener tu comunidad cargada y operando.
               </p>
             </div>
 
@@ -255,17 +398,17 @@ export default function LandingPage() {
               <StepCard
                 number="1"
                 title="Configura tu condominio"
-                description="Crea tu condominio, edificios y departamentos. Define metrajes, coeficientes o la lógica que usas para prorratear los gastos."
+                description="Crea condominio, edificios y departamentos. Ordena tu estructura desde el día 1."
               />
               <StepCard
                 number="2"
                 title="Carga gastos y genera cobros"
-                description="Registra los gastos del periodo (agua, luz, aseo, mantenciones) y genera automáticamente los cobros de gastos comunes."
+                description="Registra gastos del periodo y genera automáticamente los cobros de gasto común."
               />
               <StepCard
                 number="3"
                 title="Comparte acceso y controla pagos"
-                description="Los propietarios ingresan a su panel, descargan sus documentos y tú registras los pagos, controlando morosidad al instante."
+                description="Propietarios ven su estado (menos preguntas) y tú controlas morosidad en tiempo real."
               />
             </ol>
           </div>
@@ -280,33 +423,30 @@ export default function LandingPage() {
                   Planes pensados para administradores reales
                 </h2>
                 <p className="mt-2 text-sm text-slate-300">
-                  Parte con un plan simple y escala cuando tu cartera de
-                  condominios crezca. Sin costos ocultos, sin letra chica.
+                  Parte simple y escala cuando tu cartera crezca. Sin letra chica.
                 </p>
               </div>
-              <p className="text-xs text-slate-400">
-                *Valores y límites referenciales. Puedes ajustarlos cuando
-                definamos los planes definitivos.
-              </p>
             </div>
 
             <div className="grid gap-6 md:grid-cols-3">
               <PriceCard
                 name="Trial"
                 highlight={false}
-                description="Prueba gratis todas las funciones básicas por un tiempo limitado."
+                description="Prueba el sistema y evalúa si calza con tu operación."
                 price="$0"
                 period="por 14 días"
                 items={[
                   "1 condominio",
                   "Hasta 10 departamentos",
                   "Panel administrador",
+                  "Ideal para conocer el flujo",
                 ]}
+                onChoose={() => handleChoosePlan("Trial")}
               />
               <PriceCard
                 name="Básico"
                 highlight
-                description="Para un condominio o edificio que quiere ordenar sus gastos comunes."
+                description="Para ordenar gastos comunes sin complicarte."
                 price="$19.990"
                 period="mensual"
                 items={[
@@ -314,20 +454,24 @@ export default function LandingPage() {
                   "Hasta 40 departamentos",
                   "Reportes en PDF",
                   "Soporte por WhatsApp",
+                  "Perfecto para 1 edificio",
                 ]}
+                onChoose={() => handleChoosePlan("Básico")}
               />
               <PriceCard
                 name="Avanzado"
                 highlight={false}
-                description="Para administradores con varias comunidades y acceso para propietarios."
+                description="Para administradores que quieren profesionalizar su servicio."
                 price="$34.990"
                 period="mensual"
                 items={[
                   "Hasta 3 condominios",
-                  "Panel propietarios",
+                  "Portal de propietarios",
                   "Control de morosidad",
                   "Reportes avanzados",
+                  "Menos llamadas y reclamos",
                 ]}
+                onChoose={() => handleChoosePlan("Avanzado")}
               />
             </div>
           </div>
@@ -342,18 +486,39 @@ export default function LandingPage() {
                   Conversemos sobre tu comunidad
                 </h2>
                 <p className="mt-2 text-sm text-slate-300">
-                  Si eres administrador o miembro de comité y quieres ver cómo
-                  funcionaría Comunidad Organizada en tu condominio, déjanos tus
-                  datos y coordinamos una demo.
+                  Déjanos tus datos y coordinamos una demo. Te ayudamos a partir rápido.
                 </p>
+
                 <div className="mt-6 space-y-2 text-sm text-slate-300">
                   <p>📍 Chile</p>
                   <p>📧 contacto@mambadigital.cl</p>
                   <p>📱 +56 9 94833280</p>
                 </div>
+
+                {/* ✅ Caja “plan seleccionado” */}
+                {selectedPlanMeta && (
+                  <div className="mt-6 rounded-2xl border border-emerald-500/30 bg-slate-900/60 p-4">
+                    <p className="text-xs font-semibold text-emerald-300">
+                      Seleccionaste: {selectedPlanMeta.title}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-300">
+                      {selectedPlanMeta.helper}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPlan(null)}
+                      className="mt-3 rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-emerald-500 hover:text-emerald-300"
+                    >
+                      Cambiar / quitar selección
+                    </button>
+                  </div>
+                )}
               </div>
 
-              <form className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-sm">
+              <form
+                onSubmit={handleContactSubmit}
+                className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-sm"
+              >
                 <div>
                   <label className="mb-1 block text-xs font-medium text-slate-300">
                     Nombre y apellido
@@ -361,17 +526,26 @@ export default function LandingPage() {
                   <input
                     className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none ring-emerald-500/30 focus:border-emerald-500 focus:ring"
                     placeholder="Tu nombre completo"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    disabled={contactSending}
                   />
                 </div>
+
                 <div>
                   <label className="mb-1 block text-xs font-medium text-slate-300">
                     Correo electrónico
                   </label>
                   <input
+                    type="email"
                     className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none ring-emerald-500/30 focus:border-emerald-500 focus:ring"
                     placeholder="tucorreo@ejemplo.cl"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    disabled={contactSending}
                   />
                 </div>
+
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <label className="mb-1 block text-xs font-medium text-slate-300">
@@ -380,6 +554,9 @@ export default function LandingPage() {
                     <input
                       className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none ring-emerald-500/30 focus:border-emerald-500 focus:ring"
                       placeholder="Administrador, Comité, etc."
+                      value={contactRole}
+                      onChange={(e) => setContactRole(e.target.value)}
+                      disabled={contactSending}
                     />
                   </div>
                   <div>
@@ -389,9 +566,13 @@ export default function LandingPage() {
                     <input
                       className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none ring-emerald-500/30 focus:border-emerald-500 focus:ring"
                       placeholder="Ej: 80"
+                      value={contactUnits}
+                      onChange={(e) => setContactUnits(e.target.value)}
+                      disabled={contactSending}
                     />
                   </div>
                 </div>
+
                 <div>
                   <label className="mb-1 block text-xs font-medium text-slate-300">
                     Comentarios
@@ -400,17 +581,24 @@ export default function LandingPage() {
                     rows={3}
                     className="w-full resize-none rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none ring-emerald-500/30 focus:border-emerald-500 focus:ring"
                     placeholder="Cuéntanos brevemente cómo administras hoy tu condominio y qué te gustaría mejorar."
+                    value={contactMessage}
+                    onChange={(e) => setContactMessage(e.target.value)}
+                    disabled={contactSending}
                   />
                 </div>
+
+                {contactError && <p className="text-[11px] text-rose-400">{contactError}</p>}
+
                 <button
-                  type="button"
-                  className="w-full rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/40 hover:bg-emerald-400"
+                  type="submit"
+                  disabled={contactSending}
+                  className="w-full rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/40 hover:bg-emerald-400 disabled:opacity-60"
                 >
-                  Enviar y solicitar demo
+                  {contactSending ? "Enviando..." : "Enviar y solicitar demo"}
                 </button>
+
                 <p className="text-[11px] text-slate-400">
-                  Al enviar aceptas ser contactado sólo para coordinar una demo
-                  o entregarte información del sistema. Nada de spam.
+                  Al enviar aceptas ser contactado sólo para coordinar una demo o entregarte información del sistema. Nada de spam.
                 </p>
               </form>
             </div>
@@ -423,13 +611,89 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-5 text-[11px] text-slate-500 md:flex-row">
           <span>© {new Date().getFullYear()} Comunidad Organizada.</span>
           <div className="flex gap-4">
-            <button className="hover:text-emerald-400">
-              Términos y condiciones
-            </button>
+            <button className="hover:text-emerald-400">Términos y condiciones</button>
             <button className="hover:text-emerald-400">Política de datos</button>
           </div>
         </div>
       </footer>
+
+      {/* MODAL TRIAL */}
+      {openTrialModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-50">Crear cuenta de prueba</h3>
+              <button
+                onClick={() => setOpenTrialModal(false)}
+                className="text-slate-400 hover:text-slate-200 text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="mb-4 text-xs text-slate-300">
+              Crea un acceso como administrador y prueba Comunidad Organizada gratis por 14 días.
+            </p>
+
+            <form onSubmit={handleTrialSubmit} className="space-y-3 text-xs">
+              <div>
+                <label className="mb-1 block text-[11px] font-medium text-slate-300">
+                  Nombre y apellido
+                </label>
+                <input
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none ring-emerald-500/30 focus:border-emerald-500 focus:ring"
+                  placeholder="Tu nombre completo"
+                  value={trialName}
+                  onChange={(e) => setTrialName(e.target.value)}
+                  disabled={trialLoading}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-[11px] font-medium text-slate-300">
+                  Correo electrónico
+                </label>
+                <input
+                  type="email"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none ring-emerald-500/30 focus:border-emerald-500 focus:ring"
+                  placeholder="tucorreo@ejemplo.cl"
+                  value={trialEmail}
+                  onChange={(e) => setTrialEmail(e.target.value)}
+                  disabled={trialLoading}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-[11px] font-medium text-slate-300">
+                  Contraseña
+                </label>
+                <input
+                  type="password"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none ring-emerald-500/30 focus:border-emerald-500 focus:ring"
+                  placeholder="Mínimo 6 caracteres"
+                  value={trialPassword}
+                  onChange={(e) => setTrialPassword(e.target.value)}
+                  disabled={trialLoading}
+                />
+              </div>
+
+              {trialError && <p className="text-[11px] text-rose-400">{trialError}</p>}
+
+              <button
+                type="submit"
+                disabled={trialLoading}
+                className="mt-2 w-full rounded-xl bg-emerald-500 px-4 py-2 text-xs font-semibold text-slate-900 shadow-lg shadow-emerald-500/40 hover:bg-emerald-400 disabled:opacity-60"
+              >
+                {trialLoading ? "Creando cuenta..." : "Crear cuenta de prueba"}
+              </button>
+
+              <p className="text-[10px] text-slate-500 mt-1">
+                Te crearemos un acceso como administrador con un condominio de ejemplo. Podrás cambiar los datos luego.
+              </p>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -484,23 +748,15 @@ type PriceCardProps = {
   period: string;
   items: string[];
   highlight?: boolean;
+  onChoose?: () => void;
 };
 
-function PriceCard({
-  name,
-  description,
-  price,
-  period,
-  items,
-  highlight,
-}: PriceCardProps) {
+function PriceCard({ name, description, price, period, items, highlight, onChoose }: PriceCardProps) {
   return (
     <div
       className={[
         "flex flex-col rounded-2xl border bg-slate-900/70 p-4",
-        highlight
-          ? "border-emerald-500/70 shadow-lg shadow-emerald-500/30"
-          : "border-slate-800",
+        highlight ? "border-emerald-500/70 shadow-lg shadow-emerald-500/30" : "border-slate-800",
       ].join(" ")}
     >
       <div className="mb-3 flex items-center justify-between">
@@ -511,6 +767,7 @@ function PriceCard({
           </span>
         )}
       </div>
+
       <p className="text-xs text-slate-300">{description}</p>
 
       <div className="mt-4 flex items-baseline gap-1">
@@ -527,7 +784,11 @@ function PriceCard({
         ))}
       </ul>
 
-      <button className="mt-5 w-full rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-100 hover:border-emerald-500 hover:text-emerald-300">
+      <button
+        type="button"
+        onClick={onChoose}
+        className="text-center mt-5 w-full rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-100 hover:border-emerald-500 hover:text-emerald-300"
+      >
         Quiero este plan
       </button>
     </div>

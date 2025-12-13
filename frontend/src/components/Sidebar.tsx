@@ -2,7 +2,8 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getCurrentUser, logout as authLogout } from "../services/auth";
-import api from "../services/api"; // 👈 usamos tu cliente API
+import api from "../services/api";
+import logo from "../images/logo.png";
 
 // 🔹 Links admin sueltos
 const adminSingleLinks = [{ name: "Dashboard", path: "/", icon: "🏠" }];
@@ -50,7 +51,7 @@ export default function Sidebar() {
 
   const [userName, setUserName] = useState("Usuario");
   const [userRole, setUserRole] = useState<"admin" | "owner">("admin");
-  const [planName, setPlanName] = useState<string | null>(null); // 👈 nombre del plan
+  const [planName, setPlanName] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
@@ -61,17 +62,12 @@ export default function Sidebar() {
       setUserRole(user.role);
     }
 
-    // Traer info extendida del usuario (incluye plan) desde /me
     const fetchMe = async () => {
       try {
         const response = await api.get("/me");
         const data = response.data;
-        if (data?.plan?.name) {
-          setPlanName(data.plan.name);
-        } else if (data?.plan?.id) {
-          // fallback por si solo viene id
-          setPlanName(String(data.plan.id));
-        }
+        if (data?.plan?.name) setPlanName(data.plan.name);
+        else if (data?.plan?.id) setPlanName(String(data.plan.id));
       } catch (err) {
         console.error("Error al obtener /me para mostrar plan:", err);
       }
@@ -82,7 +78,16 @@ export default function Sidebar() {
     const handler = () => setOpen((prev) => !prev);
     document.addEventListener("toggle-sidebar", handler);
 
-    return () => document.removeEventListener("toggle-sidebar", handler);
+    // ✅ Cerrar con ESC (pro)
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.removeEventListener("toggle-sidebar", handler);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, []);
 
   // Abrir automáticamente la sección admin que contiene la ruta activa
@@ -94,18 +99,14 @@ export default function Sidebar() {
       const hasActiveItem = section.items.some(
         (item) => item.path === location.pathname
       );
-      if (hasActiveItem) {
-        newState[section.id] = true;
-      }
+      if (hasActiveItem) newState[section.id] = true;
     });
+
     setOpenSections((prev) => ({ ...prev, ...newState }));
   }, [location.pathname, userRole]);
 
   const toggleSection = (id: string) => {
-    setOpenSections((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const handleLogout = () => {
@@ -136,39 +137,36 @@ export default function Sidebar() {
       </button>
 
       <aside
-        className={`fixed md:relative z-50
-          w-64 h-screen bg-gray-900 text-gray-100 flex flex-col border-r border-gray-800
-          transform transition-transform duration-300
-          ${open ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
-        `}
+        className={`fixed md:sticky md:top-0 z-50
+    w-64 bg-gray-900 text-gray-100 flex flex-col border-r border-gray-800
+    transform transition-transform duration-300
+    ${open ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+    h-dvh md:h-screen overflow-hidden
+  `}
       >
-        {/* Header con avatar + usuario + logout */}
+
+        {/* Header pegado */}
         <div className="px-5 pt-6 pb-4 border-b border-gray-800 flex items-center justify-between">
-          {/* Avatar + nombre */}
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full overflow-hidden bg-white flex items-center justify-center shadow-md">
-              <img
-                src="/logo.jpg"
-                alt="Logo"
-                className="w-full h-full object-cover"
-              />
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-12 h-12 rounded-full overflow-hidden bg-white flex items-center justify-center shadow-md shrink-0">
+              <img src={logo} alt="Logo" className="w-full h-full object-cover" />
             </div>
 
-            <div>
-              <h1 className="text-sm font-semibold text-white">{userName}</h1>
-              <p className="text-[11px] text-gray-400">{roleLabel}</p>
+            <div className="min-w-0">
+              <h1 className="text-sm font-semibold text-white truncate">
+                {userName}
+              </h1>
+              <p className="text-[11px] text-gray-400 truncate">{roleLabel}</p>
 
-              {/* Línea del plan actual */}
               {planName && (
-                <p className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-blue-900/40 border border-blue-500/40 px-2 py-[2px] text-[10px] text-blue-300">
+                <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-blue-900/40 border border-blue-500/40 px-2 py-[2px] text-[10px] text-blue-300">
                   <span className="text-[9px]">★</span>
-                  <span>Plan: {planName}</span>
+                  <span className="truncate">Plan: {planName}</span>
                 </p>
               )}
             </div>
           </div>
 
-          {/* Logout */}
           <button
             onClick={handleLogout}
             className="text-gray-400 hover:text-red-400 transition-all text-3xl"
@@ -178,9 +176,20 @@ export default function Sidebar() {
           </button>
         </div>
 
-        {/* LINKS */}
-        <nav className="flex-1 px-3 py-5 overflow-y-auto text-sm">
-          {/* DASHBOARD / MI PANEL (link suelto) */}
+        {/* ✅ Menú con scroll interno (no se corta nunca) */}
+        <nav
+          className="
+            flex-1 px-3 py-5 text-sm
+            overflow-y-auto overscroll-contain
+            [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,.35)_transparent]
+            [&::-webkit-scrollbar]:w-2
+            [&::-webkit-scrollbar-track]:bg-transparent
+            [&::-webkit-scrollbar-thumb]:rounded-full
+            [&::-webkit-scrollbar-thumb]:bg-slate-400/20
+            [&::-webkit-scrollbar-thumb:hover]:bg-slate-400/30
+          "
+        >
+          {/* Link suelto */}
           <div className="mb-4 space-y-1">
             {(userRole === "admin" ? adminSingleLinks : ownerLinks).map(
               (link) => {
@@ -192,22 +201,22 @@ export default function Sidebar() {
                     to={link.path}
                     onClick={() => setOpen(false)}
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all
-                      ${
-                        isActive
-                          ? "bg-gray-800 text-blue-400 border border-blue-500/60"
-                          : "text-gray-300 hover:bg-gray-800 hover:text-white"
-                      }
-                    `}
+                      ${isActive
+                        ? "bg-gray-800 text-blue-400 border border-blue-500/60"
+                        : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                      }`}
                   >
-                    <span className="text-lg w-6 text-center">{link.icon}</span>
-                    <span>{link.name}</span>
+                    <span className="text-lg w-6 text-center shrink-0">
+                      {link.icon}
+                    </span>
+                    <span className="truncate">{link.name}</span>
                   </Link>
                 );
               }
             )}
           </div>
 
-          {/* SECCIONES DESPLEGABLES SOLO PARA ADMIN */}
+          {/* Secciones admin */}
           {userRole === "admin" &&
             adminSections.map((section) => {
               const isSectionOpen = openSections[section.id] ?? false;
@@ -222,15 +231,13 @@ export default function Sidebar() {
                     onClick={() => toggleSection(section.id)}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-md mb-1
                       text-xs font-semibold tracking-wide uppercase
-                      ${
-                        sectionHasActive
-                          ? "bg-gray-800 text-blue-400"
-                          : "text-gray-400 hover:bg-gray-800 hover:text-gray-100"
-                      }
-                    `}
+                      ${sectionHasActive
+                        ? "bg-gray-800 text-blue-400"
+                        : "text-gray-400 hover:bg-gray-800 hover:text-gray-100"
+                      }`}
                   >
-                    <span>{section.label}</span>
-                    <span className="text-[10px]">
+                    <span className="truncate">{section.label}</span>
+                    <span className="text-[10px] shrink-0">
                       {isSectionOpen ? "▴" : "▾"}
                     </span>
                   </button>
@@ -246,17 +253,15 @@ export default function Sidebar() {
                             to={link.path}
                             onClick={() => setOpen(false)}
                             className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all
-                              ${
-                                isActive
-                                  ? "bg-gray-800 text-blue-400 border border-blue-500/60"
-                                  : "text-gray-300 hover:bg-gray-800 hover:text-white"
-                              }
-                            `}
+                              ${isActive
+                                ? "bg-gray-800 text-blue-400 border border-blue-500/60"
+                                : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                              }`}
                           >
-                            <span className="text-lg w-6 text-center">
+                            <span className="text-lg w-6 text-center shrink-0">
                               {link.icon}
                             </span>
-                            <span>{link.name}</span>
+                            <span className="truncate">{link.name}</span>
                           </Link>
                         );
                       })}
@@ -266,7 +271,7 @@ export default function Sidebar() {
               );
             })}
 
-          {/* ADMINISTRACIÓN DE PERFIL (para ambos roles) */}
+          {/* Perfil */}
           <div className="mt-4 pt-3 border-t border-gray-800">
             <p className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
               Administración de Perfil
@@ -281,17 +286,15 @@ export default function Sidebar() {
                     to={link.path}
                     onClick={() => setOpen(false)}
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all
-                      ${
-                        isActive
-                          ? "bg-gray-800 text-blue-400 border border-blue-500/60"
-                          : "text-gray-300 hover:bg-gray-800 hover:text-white"
-                      }
-                    `}
+                      ${isActive
+                        ? "bg-gray-800 text-blue-400 border border-blue-500/60"
+                        : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                      }`}
                   >
-                    <span className="text-lg w-6 text-center">
+                    <span className="text-lg w-6 text-center shrink-0">
                       {link.icon}
                     </span>
-                    <span>{link.name}</span>
+                    <span className="truncate">{link.name}</span>
                   </Link>
                 );
               })}
@@ -299,6 +302,7 @@ export default function Sidebar() {
           </div>
         </nav>
 
+        {/* Footer pegado */}
         <div className="px-4 py-3 border-t border-gray-800 text-[11px] text-gray-500">
           <p>Comunidad Organizada</p>
           <p className="text-gray-600">by © Eduardo Zapata / Mamba Digital</p>

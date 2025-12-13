@@ -66,6 +66,34 @@ export async function login(email: string, password: string): Promise<User> {
   return user;
 }
 
+interface SignupTrialPayload {
+  name: string;
+  email: string;
+  password: string;
+}
+
+export async function signupTrial(payload: SignupTrialPayload): Promise<User> {
+  const res = await api.post<LoginResponse>("/auth/signup-trial", payload);
+
+  const data = res.data;
+
+  const normalizedRole: UserRole =
+    data.user.role === "owner" ? "owner" : "admin";
+
+  const user: User = {
+    id: data.user.id,
+    name: data.user.name,
+    email: data.user.email,
+    role: normalizedRole,
+  };
+
+  localStorage.setItem("token", data.token);
+  localStorage.setItem("user", JSON.stringify(user));
+
+  return user;
+}
+
+
 export function getToken(): string | null {
   return localStorage.getItem("token");
 }

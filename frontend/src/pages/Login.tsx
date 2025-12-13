@@ -1,5 +1,6 @@
 import { useState, FormEvent, useEffect } from "react";
 import { login, getCurrentUser } from "../services/auth";
+import logo from "../images/logo.png";
 
 type FieldErrors = {
   email?: string;
@@ -83,7 +84,7 @@ export default function Login() {
       {/* PANEL IZQUIERDO — IMAGEN CORPORATIVA DE EDIFICIOS */}
       <div className="hidden md:block relative overflow-hidden">
         <img
-          src="https://images.unsplash.com/photo-1505843513577-22bb7d21e455?q=80&w=2100&auto=format&fit=crop"
+          src="https://images.unsplash.com/photo-1700126689261-1f5bdfe5adcc?q=80&w=1332&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
           alt="Condominio"
           className={`
             absolute inset-0 w-full h-full object-cover
@@ -91,12 +92,12 @@ export default function Login() {
             ${loaded ? "scale-105 opacity-100" : "scale-100 opacity-0"}
           `}
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-900/60 via-blue-700/40 to-blue-500/30" />
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-700/40 to-blue-500/30" />
 
         <div className="absolute top-8 left-8 flex items-center gap-3 text-white">
-          <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-md overflow-hidden">
+          <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center shadow-md overflow-hidden">
             <img
-              src="/logo.jpg"
+              src={logo}
               alt="Logo"
               className="w-full h-full object-cover"
             />
@@ -131,9 +132,9 @@ export default function Login() {
           `}
         >
           <div className="flex justify-center mb-4">
-            <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-md overflow-hidden">
+            <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center shadow-md overflow-hidden">
               <img
-                src="/logo.jpg"
+                src={logo}
                 alt="Logo"
                 className="w-full h-full object-cover"
               />
